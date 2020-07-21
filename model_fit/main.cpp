@@ -6,6 +6,9 @@
 //Set irritated investor as a global node
 static True_node* Irritation_Investor = new True_node();
 
+
+
+
 //Max function for 2 doubles. Could be replaced by standard max
 double maxd(double no_one, double no_two)
 {
@@ -25,35 +28,35 @@ Matrix initialize_trustee_utility(int trustee_guilt, double trustee_risk_aversio
 			double money_kept = 5.0*static_cast<double>(max_amount) - 5.0*static_cast<double>(money_invested); //amount the investor retains
 			double money_returned = static_cast<double>(rbf*5*money_invested*response)/6.0; //amount the trustee returns
 			double total_profit_investor = money_kept + money_returned; //round payoff for the investor
-			double believed_guilt = static_cast<double>(trustee_guilt); //input trustee guilt transformed to double, guilt is "int" otherwise for use as an array index 
+			double believed_guilt = static_cast<double>(trustee_guilt); //input trustee guilt transformed to double, guilt is "int" otherwise for use as an array index
 			double total_profit_trustee = static_cast<double>(rbf*5*money_invested) - money_returned; //round payoff for trustee
-			ut(money_invested,response) = (trustee_risk_aversion*static_cast<double>(rbf*5*money_invested)- money_returned -  believed_guilt*(0.1*believed_guilt+0.3)  * maxd(total_profit_trustee - total_profit_investor, 0.0));			
+			ut(money_invested,response) = (trustee_risk_aversion*static_cast<double>(rbf*5*money_invested)- money_returned -  believed_guilt*(0.1*believed_guilt+0.3)  * maxd(total_profit_trustee - total_profit_investor, 0.0));
 			//Fehr-Schmidt utility. Guilt is transformed according to a mapping of 0 -> 0, 1-> 0.4 and 2 -> 1. Corresponding to the 3 guilt settings inference is based on.
 		}
 	}
-	
+
 	return ut;	//trustee choice utility structure is returned
 }
 
 Matrix initialize_trustee_probabilities(Matrix const& ut, double temperature) //Calculated likelihood of trustee choices, for all possible investor actions
 {
 	Matrix trustee_probabilities = Zero_matrix(noa, 5); //5 investor actions, 5 potential trustee responses (1 if investor choice was "invest 0")
-	
+
 	for(Matrix::size_type money_invested = 0; money_invested < trustee_probabilities.size1(); ++money_invested)
 	{
 		double sum = 0.0;	//exponential utilities will be summed up, to form the denominator of a logistic softmax
 		double max_val = -100.0; //maximum utility is recorded, to prevent certain numerical issues (eliminate much small exponentials)
 		for(Matrix::size_type money_returned = 0; money_returned < nor(money_invested); ++money_returned)	//record max trustee utility conditional on investor action
 		{
-			max_val = (max_val < 1.0/temperature*ut(money_invested, money_returned) ? 1.0/temperature*ut(money_invested, money_returned):max_val);		
+			max_val = (max_val < 1.0/temperature*ut(money_invested, money_returned) ? 1.0/temperature*ut(money_invested, money_returned):max_val);
 		}
-		for(Matrix::size_type money_returned = 0; money_returned < nor(money_invested); ++money_returned) 
+		for(Matrix::size_type money_returned = 0; money_returned < nor(money_invested); ++money_returned)
 		{
 			if(1.0/temperature*ut(money_invested, money_returned)-max_val > -20.0)	//if the utility is close enough to the max to be relevant in the softmax:
 			{																		// include in denominator of logistic softmax
 				sum += exp(1.0/temperature*ut(money_invested, money_returned));
 			}
-		}	
+		}
 		for(Matrix::size_type money_returned = 0; money_returned < nor(money_invested); ++money_returned)
 		{
 			if(1.0/temperature*ut(money_invested, money_returned)-max_val > -20.0)
@@ -66,7 +69,7 @@ Matrix initialize_trustee_probabilities(Matrix const& ut, double temperature) //
 			}
 		}
 	}
-	
+
 	return trustee_probabilities;	//return trustee choice probabilities
 }
 
@@ -79,15 +82,15 @@ boost::array<boost::array<double, noa>, nob> initialize_expected_trustee_payoff(
 		{
 			Repayment_payoff[t_guilt][i_action] = 0.0; //initialize for subsequent summation
 			for(int t_return = 0; t_return < nor(i_action); ++t_return) //includes own choice probability for each guilt
-			{	
+			{
 				if(trustee_choice_probabilities[t_guilt](i_action, t_return) > 0.001) //numerical safeguard
 				{
 					Repayment_payoff[t_guilt][i_action] += ut_system[t_guilt](i_action, t_return)*trustee_choice_probabilities[t_guilt](i_action, t_return);
 				}
 			}
 		}
-	}	
-	
+	}
+
 	return Repayment_payoff;	//return expected value of investor choice, from trustee perspective, given trustee guilt
 }
 
@@ -95,14 +98,14 @@ boost::array<boost::array<boost::array<double, noa>, nob>, nob> initialize_expec
 {	//precalculate the expected value of investment from the point of view of the investor, conditional on investor guilt and trustee guilt (for computational savings)
 	boost::array<boost::array<boost::array<double,noa>, nob>, nob> Repayment_expectation; //holder for value of investment expectation
 	for(int i_guilt=0; i_guilt < nob; ++i_guilt)	//investor guilts
-	{	
+	{
 		for(int t_guilt=0; t_guilt < nob; ++t_guilt)	//trustee guilts
 		{
 			for(int i_action = 0; i_action < noa; ++i_action) //possible investor actions
 			{
 				Repayment_expectation[i_guilt][t_guilt][i_action] = 0.0; //initialize for subsequent summation
 				for(int t_return = 0; t_return < nor(i_action); ++t_return) //excludes own choice probability
-				{		
+				{
 					if(trustee_choice_probabilities[t_guilt](i_action, t_return) > 0.001) //numerical safeguard
 					{
 						Repayment_expectation[i_guilt][t_guilt][i_action] += ui_system[i_guilt](i_action, t_return)*trustee_choice_probabilities[t_guilt](i_action, t_return);
@@ -111,7 +114,7 @@ boost::array<boost::array<boost::array<double, noa>, nob>, nob> initialize_expec
 			}
 		}
 	}
-	
+
 	return Repayment_expectation; //return expected value of investor choice, from investor perspective
 }
 
@@ -137,14 +140,14 @@ Matrix initialize_ui_init(int guilt, double investor_risk_aversion)	//Calculate 
 		for(Matrix::size_type response = 0; response < nor(money_invested); ++response)
 		{
 			double money_kept = 5.0*static_cast<double>(max_amount) - 5.0*static_cast<double>(money_invested);	//amount remaining with the investor at investment
-			double money_returned = static_cast<double>(rbf*5*money_invested*response)/6.0;	
+			double money_returned = static_cast<double>(rbf*5*money_invested*response)/6.0;
 			double total_profit_investor = money_kept + money_returned;
 			double believed_guilt = static_cast<double>(guilt);
 			double total_profit_trustee = static_cast<double>(rbf*5*money_invested) - money_returned;
 			ui_init(money_invested,response) = (investor_risk_aversion*static_cast<double>(money_kept)+money_returned -  believed_guilt*(0.1*believed_guilt+0.3)  * maxd(total_profit_investor - total_profit_trustee, 0.0));
 		}
 	}
-	
+
 	return ui_init;
 }
 
@@ -166,22 +169,22 @@ Matrix_vector initialize_utpi_init(double trustee_risk_aversion)	//trustee choic
 			}
 		}
 	}
-	
+
 	return utpi_init;
 }
 
-void shift_updates(True_node** start_node, True_node** end_node, int const& level, double const& monetary_action)	//irritation shift calculation 
+void shift_updates(True_node** start_node, True_node** end_node, int const& level, double const& monetary_action)	//irritation shift calculation
 {
 	True_node* origin_node;	//pointer to hold the pointer to the agent node based on the preceeding history
 	origin_node = *start_node;
 	True_node* target_node;	//pointer to hold the pointer to the agent node based on the current history, which will contain updated shifts
-	target_node = *end_node;	
+	target_node = *end_node;
 	boost::array<boost::array<double, noi>, noT+1> shifts = origin_node -> get_shifts(); //old shift state is obtained
 	double expectation = 0.0;	//expectated value of the current interaction will need to be compared to the actual value of current monetary action
-	
+
 	if(level > 0)
 	{
-		expectation = origin_node-> get_expectation(level-1);	//levels are coded on by one level higher (i.e. expectation of level 0 actor is coded as 1), to prevent negative indices 
+		expectation = origin_node-> get_expectation(level-1);	//levels are coded on by one level higher (i.e. expectation of level 0 actor is coded as 1), to prevent negative indices
 	}
 	else
 	{
@@ -189,21 +192,21 @@ void shift_updates(True_node** start_node, True_node** end_node, int const& leve
 	}
 	double disappointment =  expectation -  monetary_action;	//irritation can only occur if the monetary action is below the expected action
 	for(int irr=0; irr < noi; ++irr)	//shift updates for all possible irritation values
-	{												
+	{
 		shifts[level][irr] = (disappointment > 0.0 ? (1.0/static_cast<double>(noi-1))*static_cast<double>(irr):(-(1.0/static_cast<double>(noi-1))*static_cast<double>(irr))) + shifts[level][irr];
 		//irritation occurs if disappointment is greater 0
 		shifts[level][irr] = (shifts[level][irr] > 1.0 ? 1.0:shifts[level][irr]); //irritation is bounded at 1
-		shifts[level][irr] = (shifts[level][irr] < 0.0 ? 0.0:shifts[level][irr]); //irritation is bounded at 0					
+		shifts[level][irr] = (shifts[level][irr] < 0.0 ? 0.0:shifts[level][irr]); //irritation is bounded at 0
 		target_node -> set_shift( level, shifts[level][irr], irr);	//updated shift is carried forward into the "current history" node
-	}	
-	
+	}
+
 
 }
 
 void belief_updates(True_node** start_node, True_node** end_node, int const& level, double const& monetary_action, int const& act, bool const& investor)
 {
 	True_node* origin_node;	//structure to keep the pointer to the already calculated node
-	origin_node = *start_node;	
+	origin_node = *start_node;
 	True_node* target_node;	//structure to keep the pointer to the to-be-calculated node
 	target_node = *end_node;
 	boost::array<boost::array<double,noi>, noT> Irr_beliefs = origin_node -> get_irr_beliefs(); //obtain irritation beliefs to be modified
@@ -245,35 +248,35 @@ void belief_updates(True_node** start_node, True_node** end_node, int const& lev
 	}
 
 	for(int guilt=0; guilt < nob ; ++guilt)	//update for each guilt
-	{	
+	{
 
 		for(int irr=0; irr < noi; ++irr)	//for each guilt, all irritation scenarios have to be considered
 		{
 			if( exp_payoffs[guilt][act] > 0.01 && irr_probability[irr] > 0.001)	//numerical safeguard
-			{			
-				beliefs[level-1][guilt]+= (1.0-shifts[level-1][irr])*irr_probability[irr]*exp_payoffs[guilt][act]; //unshifted choice probability 
+			{
+				beliefs[level-1][guilt]+= (1.0-shifts[level-1][irr])*irr_probability[irr]*exp_payoffs[guilt][act]; //unshifted choice probability
 			}
 		}
 
 		for(int irr=0; irr < noi; ++irr)
 		{
-	
+
 			if( shifts[level-1][irr] > 0.001 && irr_probability[irr] > 0.001 && i_exp_payoffs[0][act] > 0.001 )	//numerical safeguard
-			{				
+			{
 				beliefs[level-1][guilt]+= shifts[level-1][irr]*irr_probability[irr]*i_exp_payoffs[0][act]; //shifted (=irritated) choice probability
 			}
 		}
-	
+
 		target_node-> set_belief_parameters(guilt, beliefs[level-1][guilt], level-1);	//new 9approximate) belief priors are set in the new node
 	}
-	
+
 
 	double tester = 0.0;	//variable to check if irritation actually happens
-	/*for(int irr=0; irr < noi; ++irr) 
+	/*for(int irr=0; irr < noi; ++irr)
 	{
 		tester = ( shifts[level-1][irr] > 0.0 ? 1.0:tester);
     }
-	for(int irr=0; irr < 1; ++irr) 
+	for(int irr=0; irr < 1; ++irr)
 	{
  		if( tester>0.0 ) //update if there was a chance of irritation
 		{
@@ -329,36 +332,36 @@ void belief_updates(True_node** start_node, True_node** end_node, int const& lev
 		}
 
 	}
-	
+
 }
 
 void investor_expectation_calculation( int const& level, True_node** given_pointer, boost::array<double, nob> const& running_belief_probability , boost::array<double, noi> const& irr_probability)
 {	//calculate the trustee expectation of the investor action
-	//beliefs are included in the function as probabilities, NOT priors (though this would be possible) 
+	//beliefs are included in the function as probabilities, NOT priors (though this would be possible)
 	double expectation = 0.0; //holder for expectation
 	True_node* node_pointer; //pointer to the to be modified node
 	node_pointer = *given_pointer;
 	boost::array<boost::array<double, noa>, nob> exp_payoffs;
 	if(level > -1)
 	{
-		boost::array<boost::array<double, noi>, noT+1> shifts = node_pointer -> get_shifts(); //determine if investor acts under irritation		
+		boost::array<boost::array<double, noi>, noT+1> shifts = node_pointer -> get_shifts(); //determine if investor acts under irritation
 		if(level == 0) //special case for level 0 //technicality left from an earlier version
 		{
 			exp_payoffs = node_pointer -> get_exp_payoffs(0); //get non irritated payoffs
-			for(int irr=0; irr < noi; ++irr)	
-			{	
+			for(int irr=0; irr < noi; ++irr)
+			{
 				if(irr_probability[irr]>0.001)
 				{
 					if((1.0 - shifts[0][irr]) > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if(running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < noa ; ++i)  
-								{	
+								for(int i=0; i < noa ; ++i)
+								{
 									if(exp_payoffs[belief][i] > 0.0001)
-									{		
+									{
 										expectation += (1.0-shifts[0][irr])*5.0*static_cast<double>(i)*exp_payoffs[belief][i]*
 										running_belief_probability[belief]*irr_probability[irr]; //sum expectations over all non-irritated components, weighted by parameter likelihood
 									}
@@ -375,19 +378,19 @@ void investor_expectation_calculation( int const& level, True_node** given_point
 				{
 					if(shifts[0][irr] > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if(running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < noa ; ++i)  
-								{	
+								for(int i=0; i < noa ; ++i)
+								{
 									if(exp_payoffs[0][i] > 0.0001)
-									{								
+									{
 										expectation += shifts[0][irr]*5.0*static_cast<double>(i)*exp_payoffs[0][i]*
 										running_belief_probability[belief]*irr_probability[irr];	//sum expectations over all irritated components, weighted by parameter likelihood
 									}
 								}
-							}							
+							}
 						}
 					}
 				}
@@ -404,23 +407,23 @@ void investor_expectation_calculation( int const& level, True_node** given_point
 				{
 					if((1.0 -shifts[level][irr]) > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if(running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < noa ; ++i)  
-								{	
+								for(int i=0; i < noa ; ++i)
+								{
 									if(exp_payoffs[belief][i] > 0.0001)
-									{		
+									{
 										expectation += (1.0-shifts[level][irr])*5.0*static_cast<double>(i)*exp_payoffs[belief][i]*
-										running_belief_probability[belief]*irr_probability[irr];	
+										running_belief_probability[belief]*irr_probability[irr];
 									}
 								}
-							}							
+							}
 						}
 					}
 				}
-			}									
+			}
 			exp_payoffs = Irritation_Investor -> get_exp_payoffs(0);
 			for(int irr=0; irr < noi; ++irr)
 			{
@@ -428,19 +431,19 @@ void investor_expectation_calculation( int const& level, True_node** given_point
 				{
 					if(shifts[level][irr] > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if(running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < noa ; ++i)  
-								{	
+								for(int i=0; i < noa ; ++i)
+								{
 									if(exp_payoffs[0][i] > 0.0001)
-									{			
+									{
 										expectation += shifts[level][irr]*5.0*static_cast<double>(i)*exp_payoffs[0][i]*
-										running_belief_probability[belief]*irr_probability[irr];	
+										running_belief_probability[belief]*irr_probability[irr];
 									}
 								}
-							}							
+							}
 						}
 					}
 				}
@@ -451,58 +454,58 @@ void investor_expectation_calculation( int const& level, True_node** given_point
 	}
 	else
 	{	//necessary special case for level -1 Trustee. Level -2 investor model includes no irritation. (Guilt belief could be removed here, since it is uniform always)
-		exp_payoffs = node_pointer -> get_exp_payoffs(0); 
-		for(int belief=0; belief < nob ; ++belief) 
+		exp_payoffs = node_pointer -> get_exp_payoffs(0);
+		for(int belief=0; belief < nob ; ++belief)
 		{
-			if( running_belief_probability[belief] > 0.001) 
+			if( running_belief_probability[belief] > 0.001)
 			{
-				for(int i=0; i < noa; ++i)  
-				{	
+				for(int i=0; i < noa; ++i)
+				{
 					if(exp_payoffs[belief][i] > 0.0001)
-					{			
+					{
 						expectation += 5.0*static_cast<double>(i)*exp_payoffs[belief][i]*
 						running_belief_probability[belief];
 					}
-				}					
+				}
 			}
-		}	
+		}
 
 		node_pointer -> set_expectation(expectation, 0);
-	}	
-	
+	}
+
 }
 
 void trustee_expectation_calculation( int const& level, True_node** given_pointer, boost::array<double, nob> const& running_belief_probability , boost::array<double, noi> const& irr_probability, int const& i_act)
 {	//calculation of investor expectation fo trustee action
-	double expectation = 0.0; 
+	double expectation = 0.0;
 	True_node* node_pointer;
 	node_pointer = *given_pointer;
 	boost::array<boost::array<double, noa>, nob> exp_payoffs;
 	if(level > -1)
 	{
-		boost::array<boost::array<double, noi>, noT+1> shifts = node_pointer -> get_shifts();	
+		boost::array<boost::array<double, noi>, noT+1> shifts = node_pointer -> get_shifts();
 		if(level == 0)
 		{
 			exp_payoffs = node_pointer -> get_exp_payoffs(0);
 			for(int irr=0; irr < noi; ++irr)
-			{		
+			{
 				if(irr_probability[irr] > 0.001)
 				{
 					if((1.0 -shifts[0][irr]) > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if(running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < nor(i_act) ; ++i)  
-								{	
+								for(int i=0; i < nor(i_act) ; ++i)
+								{
 									if(exp_payoffs[belief][i] > 0.0001)
-									{		
+									{
 										expectation += (1.0-shifts[0][irr])*1.0/6.0*static_cast<double>(i*5*rbf*i_act)*exp_payoffs[belief][i]*
-										running_belief_probability[belief]*irr_probability[irr];	
+										running_belief_probability[belief]*irr_probability[irr];
 									}
 								}
-							}							
+							}
 						}
 					}
 				}
@@ -514,25 +517,25 @@ void trustee_expectation_calculation( int const& level, True_node** given_pointe
 				{
 					if(shifts[0][irr] > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if(running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < nor(i_act) ; ++i)  
-								{	
+								for(int i=0; i < nor(i_act) ; ++i)
+								{
 									if(exp_payoffs[0][i] > 0.0001)
-									{		
+									{
 										expectation += shifts[0][irr]*1.0/6.0*static_cast<double>(i*5*rbf*i_act)*exp_payoffs[0][i]*
-										running_belief_probability[belief]*irr_probability[irr];	
+										running_belief_probability[belief]*irr_probability[irr];
 									}
 								}
 							}
 						}
 					}
 				}
-			}				
+			}
 
-			node_pointer -> set_expectation(expectation, level);			
+			node_pointer -> set_expectation(expectation, level);
 		}
 		else
 		{
@@ -543,71 +546,71 @@ void trustee_expectation_calculation( int const& level, True_node** given_pointe
 				{
 					if((1.0 -shifts[level][irr]) > 0.001)
 					{
-						for(int belief=0; belief < nob ; ++belief) 
+						for(int belief=0; belief < nob ; ++belief)
 						{
 							if( running_belief_probability[belief] > 0.001)
 							{
-								for(int i=0; i < nor(i_act) ; ++i)  
-								{	
+								for(int i=0; i < nor(i_act) ; ++i)
+								{
 									if( exp_payoffs[belief][i] > 0.001)
-									{		
+									{
 										expectation += (1.0-shifts[level][irr])*1.0/6.0*static_cast<double>(i*5*rbf*i_act)*exp_payoffs[belief][i]*
 										running_belief_probability[belief]*irr_probability[irr];
-									}
-								}
-							}							
-						}
-					}
-				}
-			}
-			exp_payoffs = node_pointer -> get_exp_payoffs(0); 
-			for(int irr=0; irr < noi; ++irr)
-			{
-				if(irr_probability[irr] > 0.001)
-				{				
-					if(shifts[level][irr] > 0.001)
-					{
-						for(int belief=0; belief < nob ; ++belief) 
-						{
-							if(running_belief_probability[belief] > 0.001)
-							{
-								for(int i=0; i < nor(i_act) ; ++i)  
-								{	
-									if(exp_payoffs[0][i] > 0.001)
-									{									
-										expectation += shifts[level][irr]*1.0/6.0*static_cast<double>(i*5*rbf*i_act)*exp_payoffs[0][i]*
-										running_belief_probability[belief]*irr_probability[irr];	
 									}
 								}
 							}
 						}
 					}
 				}
-			}			
-		
+			}
+			exp_payoffs = node_pointer -> get_exp_payoffs(0);
+			for(int irr=0; irr < noi; ++irr)
+			{
+				if(irr_probability[irr] > 0.001)
+				{
+					if(shifts[level][irr] > 0.001)
+					{
+						for(int belief=0; belief < nob ; ++belief)
+						{
+							if(running_belief_probability[belief] > 0.001)
+							{
+								for(int i=0; i < nor(i_act) ; ++i)
+								{
+									if(exp_payoffs[0][i] > 0.001)
+									{
+										expectation += shifts[level][irr]*1.0/6.0*static_cast<double>(i*5*rbf*i_act)*exp_payoffs[0][i]*
+										running_belief_probability[belief]*irr_probability[irr];
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
 			node_pointer -> set_expectation(expectation, level);
 		}
 	}
 	else
 	{
 		exp_payoffs = node_pointer -> get_exp_payoffs(0);
-		for(int belief=0; belief < nob ; ++belief) 
+		for(int belief=0; belief < nob ; ++belief)
 		{
 			if( running_belief_probability[belief] > 0.001)
 			{
-				for(int i=0; i < nor(i_act) ; ++i)  
-				{	
+				for(int i=0; i < nor(i_act) ; ++i)
+				{
 					if(exp_payoffs[belief][i] > 0.0001)
-					{		
+					{
 						expectation += 1.0/6.0*static_cast<double>(i*5*rbf*i_act)*exp_payoffs[belief][i]*
 						running_belief_probability[belief];
 					}
-				}					
+				}
 			}
-		}	
+		}
 		node_pointer -> set_expectation(expectation, 0);
-	}	
-	
+	}
+
 }
 
 void investor_k( int const& present_time //current time index from which to calculate
@@ -620,31 +623,31 @@ void investor_k( int const& present_time //current time index from which to calc
 					 , boost::array<Matrix, nob> const& ut_init_system //pass precalculated trustee utilities for all guilt levels
 					 , boost::array<boost::array<double, noa>, nob> const& expected_trustee_payoff //array to obtain expected trustee utility for an investment quickly
 					 , boost::array<boost::array<boost::array<double, noa>, nob>, nob> const& expected_outcome_utlity //array to obtain expected investment utility quickly, conditional on investor guilt
-					 , double const& temperature	//logistic softmax temperature parameter 
+					 , double const& temperature	//logistic softmax temperature parameter
 					, MEMORY_POOL<True_node>& mempool	// memory pool to hold the generated tree
 					, True_node** reference_node);	//pointer to the history/belief node from which to calculate
 
 void trustee_k(  int const& money_invested	//necessary to keep track of the starting situation of the trustee - how they may respond and what the responses are worth
-					, int const& present_time				
+					, int const& present_time
 					, int const& planning_horizon
 					, boost::array<int,noT+1> guilt_parameter
 					, int const& k2
-					, boost::array<int, global_time_horizon> const& pastactions 
+					, boost::array<int, global_time_horizon> const& pastactions
 					, boost::array<int, global_time_horizon> const& responses
 					, boost::array<Matrix, nob> const& ui_init_system
 					, boost::array<Matrix, nob> const& ut_init_system
 					, boost::array<boost::array<double, noa>, nob> const& expected_trustee_payoff
 					, boost::array<boost::array<boost::array<double, noa>, nob>, nob> const& expected_outcome_utility
-					, double const& temperature	
+					, double const& temperature
 					, MEMORY_POOL<True_node>& mempool
-					,  True_node** reference_node	
+					,  True_node** reference_node
 					)
-{	
+{
 	std::vector<double> trustee_val (noa*global_time_horizon,0.0); //payoff holder
 	boost::array<int, global_time_horizon> action; //local variable to hold histories during calculation
 	boost::array<int, global_time_horizon> response; //local variable to hold histories during calculation
 	int trustee_guilt; //holder for the assumed actual guilt in the calculation
-	
+
 	for(int l=0; l < global_time_horizon; ++l) //set current history
 	{
 		action[l]=pastactions[l];
@@ -653,7 +656,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 	for(int l=0; l < global_time_horizon; ++l) //set current history
 	{
 		response[l]=responses[l];
-	}	
+	}
 
 	True_node* current_node; //holder for investor node during calculation
 	current_node = *reference_node; //set investor node to initial node (until first trustee response)
@@ -661,11 +664,11 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 	Trustee_node_r= *reference_node; //initialy pointer is set to trustee
 	True_node* root;	//holder for the very first node
 	root = *reference_node;
-	
+
 	int game = present_time; //game = running variable for time
-	
+
 	if( (k2 < 0) ) //level -1 and level -2 calculation
-	{	
+	{
 		trustee_guilt = guilt_parameter[noT];	//read out trustee guilt parameter to be used in calculation
 
 		int update = 0;	//update for multiple potential time horizons. Currently not used
@@ -677,11 +680,11 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			max_val = (max_val < trustee_val[action_loc+noa*update] ? trustee_val[action_loc+noa*update]:max_val); //keep track of max value
 			Trustee_node_r -> set_payoff(action_loc, trustee_val[action_loc+noa*update]);	//store the payoff value
 		}
-		for(int action_loc =0; action_loc < nor(money_invested); ++action_loc)	
+		for(int action_loc =0; action_loc < nor(money_invested); ++action_loc)
 		{
 			if(1.0/temperature*(trustee_val[action_loc+noa*update]-max_val) > -20.0) //only sum commponents close enough to matter in the softmax
 			{
-				sum += exp(1.0/temperature*trustee_val[action_loc + noa*update]);	
+				sum += exp(1.0/temperature*trustee_val[action_loc + noa*update]);
 			}
 		}
 		for(int action_loc =0; action_loc < nor(money_invested); ++action_loc)	//calculate choice likelihood through logistic softmax
@@ -693,9 +696,9 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			else
 			{
 				trustee_val[action_loc + noa*update] = 0.0;
-			}				
+			}
 			Trustee_node_r -> set_exp_payoffs(action_loc,trustee_val[action_loc+noa*update], trustee_guilt, 0); //store choice probability
-		}	
+		}
 
 
 
@@ -714,18 +717,18 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 				double max_val = -100.0;
 				for(int action_loc =0; action_loc < nor(money_invested); ++action_loc)
 				{
-					trustee_val[action_loc+noa*update] = ut_init_system[trustee_guilt](money_invested, action_loc); 
+					trustee_val[action_loc+noa*update] = ut_init_system[trustee_guilt](money_invested, action_loc);
 					Trustee_node_r -> set_payoff(action_loc, trustee_val[action_loc+noa*update]);
 					max_val = (max_val < trustee_val[action_loc+noa*update] ? trustee_val[action_loc+noa*update]:max_val);
-					
-				}	
+
+				}
 				for(int action_loc =0; action_loc < nor(money_invested); ++action_loc)
-				{					
+				{
 					if(1.0/temperature*(trustee_val[action_loc+noa*update]-max_val) > -20.0)
 					{
 						sum += exp(1.0/temperature*trustee_val[action_loc + noa*update]);
 					}
-				}					
+				}
 				for(int action_loc =0; action_loc < nor(money_invested); ++action_loc)
 				{
 					if(1.0/temperature*(trustee_val[action_loc+noa*update]-max_val) > -20.0)
@@ -735,12 +738,12 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					else
 					{
 						trustee_val[action_loc + noa*update] = 0.0;
-					}						
-					Trustee_node_r -> set_exp_payoffs(action_loc,trustee_val[action_loc+noa*update], trustee_guilt, k2+1);		
-				}						
+					}
+					Trustee_node_r -> set_exp_payoffs(action_loc,trustee_val[action_loc+noa*update], trustee_guilt, k2+1);
+				}
 
-			}	
-			
+			}
+
 
 			Trustee_node_r-> confirm_exploration(trustee_guilt, k2+1);
 		}
@@ -758,7 +761,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			boost::array<double,nob> running_belief_probability;//local guilt probability holder
 			boost::array<double,noi> investor_irr_probability;//local irritability probability holder
 			boost::array<double,noi> running_irr_probability;//local irritability probability holder
-			boost::array<boost::array<double,noi>, noT> irr_beliefs; //local irritation belief holder		
+			boost::array<boost::array<double,noi>, noT> irr_beliefs; //local irritation belief holder
 			boost::array<boost::array<double, noi>, noT+1> local_shifts;//local shifts holder
 			beliefs = Trustee_node_r -> get_belief_parameters(); //retrieve current beliefs from root node
 			irr_beliefs = Trustee_node_r-> get_irr_beliefs();	//retrieve current beliefs from root node
@@ -766,7 +769,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			for(int o = 0; o < nob; ++o)
 			{
 				sum += beliefs[k2][o];
-			}				
+			}
 			for(int o = 0; o < nob; ++o)
 			{
 				investor_belief_probability[o] = beliefs[k2][o]/sum;	//calculate probability of investor guilts
@@ -775,23 +778,23 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			for(int o = 0; o < noi; ++o)
 			{
 				isum += irr_beliefs[k2][o];
-			}			
+			}
 			for(int o = 0; o < noi; ++o)
 			{
 				investor_irr_probability[o] = irr_beliefs[k2][o]/isum;	//calculate probability of investor irritation
-			}	
-			if(k2>0)	//investor expectation might not have been set up yet 
+			}
+			if(k2>0)	//investor expectation might not have been set up yet
 			{	//transform Dirichlet-Multinomial priors into probabilities
 				sum =0.0;
 				isum = 0.0;
 				for(int o = 0; o < nob; ++o)
 				{
-					sum += beliefs[k2-1][o]; 
-				}						
+					sum += beliefs[k2-1][o];
+				}
 				for(int o = 0; o < noi; ++o)
 				{
 					isum += irr_beliefs[k2-1][o];
-				}						
+				}
 				for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)
 				{
 					running_belief_probability[guilt_counter] = beliefs[k2-1][guilt_counter]/sum;
@@ -799,12 +802,12 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 				for(int irr_counter = 0; irr_counter < noi; ++irr_counter)
 				{
 					running_irr_probability[irr_counter] = irr_beliefs[k2-1][irr_counter]/isum;
-				}				
+				}
 				trustee_expectation_calculation( k2-1, &Trustee_node_r, running_belief_probability , running_irr_probability, money_invested); //set up expectation
 			}
 			else
 			{	//if the trustee is level 0, their partner is level -1, thus has only uniform unchanging guilt beliefs and no irritatbility model
-				for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)	
+				for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)
 				{
 					running_belief_probability[guilt_counter] = 1.0/static_cast<double>(nob);
 				}
@@ -813,13 +816,13 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					running_irr_probability[irr_counter] = 0.0;
 				}
 				running_irr_probability[0]= 1.0;
-				trustee_expectation_calculation( -1, &Trustee_node_r, running_belief_probability , running_irr_probability, money_invested);	
+				trustee_expectation_calculation( -1, &Trustee_node_r, running_belief_probability , running_irr_probability, money_invested);
 			}
-			
+
 			double b_sum =0.0; //holder for belief summation
 			sum = 0.0;
-			double max_val = -100.0;					
-	
+			double max_val = -100.0;
+
 			for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)	//calculate for all possible responses
 			{
 				t_util[first_ret] = ut_init_system[trustee_guilt](money_invested , first_ret); //utility of response set
@@ -833,27 +836,27 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					beliefs = Trustee_node_r -> get_belief_parameters();
 					local_shifts = Trustee_node_r -> get_shifts();
 					//------------------------ initialize node to preceeding node values
-					for(int l= 0; l < noT; ++l)  
-					{	
+					for(int l= 0; l < noT; ++l)
+					{
 						for(int irr=0; irr < noi; ++irr)
 						{
 							current_node-> set_irr_parameters(irr, irr_beliefs[l][irr], l);
 						}
 						for(int b=0; b < nob; ++b)
-						{		
-							current_node -> set_belief_parameters(b, beliefs[l][b], l);				
-						}		
-					}	
-					for(int level=0; level < noT+1; ++level)  
-					{	
-						for(int irr=0; irr < noi; ++irr)
-						{	
-							current_node -> set_shift(level, local_shifts[level][irr], irr);		
+						{
+							current_node -> set_belief_parameters(b, beliefs[l][b], l);
 						}
 					}
-											
+					for(int level=0; level < noT+1; ++level)
+					{
+						for(int irr=0; irr < noi; ++irr)
+						{
+							current_node -> set_shift(level, local_shifts[level][irr], irr);
+						}
+					}
+
 					Trustee_node_r -> set_child(first_ret, current_node);	//connect node to preceeding node
-					
+
 					if((k2+2)%2== 0) //set up level -1 expectation (see main)
 					{
 						double sum = 0.0;
@@ -877,7 +880,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 						{
 							running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-						}							
+						}
 						investor_expectation_calculation( 0, &current_node,  running_belief_probability , running_irr_probability);
 					}
 					else
@@ -890,14 +893,14 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						{
 							running_irr_probability[guilt_counter] = 0.0;
 						}
-						running_irr_probability[0] = 1.0;					
+						running_irr_probability[0] = 1.0;
 						investor_expectation_calculation( -1, &current_node,  running_belief_probability , running_irr_probability);
-					}											
+					}
 				}
 				//----------------------- get local variables at the current level, ensure partner model is up to date
 				irr_beliefs = Trustee_node_r-> get_irr_beliefs();
 				beliefs = Trustee_node_r -> get_belief_parameters();
-				local_shifts = Trustee_node_r -> get_shifts();	
+				local_shifts = Trustee_node_r -> get_shifts();
 				//--------------------------- only update the current top levels k2 and k2-1 (own and partner) -> layerwise calculation
 				for(int irr=0; irr < noi; ++irr)
 				{
@@ -908,18 +911,18 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					}
 				}
 				for(int b=0; b < nob; ++b)
-				{		
-					current_node -> set_belief_parameters(b, beliefs[k2][b], k2);	
+				{
+					current_node -> set_belief_parameters(b, beliefs[k2][b], k2);
 					if(k2>0)
 					{
 						current_node -> set_belief_parameters(b, beliefs[k2-1][b], k2-1);
-					}								
+					}
 				}
 				for(int irr=0; irr < noi; ++irr)
-				{	
-					current_node -> set_shift(k2+1, local_shifts[k2+1][irr], irr);	
-					current_node -> set_shift(k2, local_shifts[k2][irr], irr);	
-				}						
+				{
+					current_node -> set_shift(k2+1, local_shifts[k2+1][irr], irr);
+					current_node -> set_shift(k2, local_shifts[k2][irr], irr);
+				}
 				double trustee_monetary_response = 1/6.0*static_cast<double>(rbf*5*money_invested*response[game]);	//determine actual monetary value to calculate investor prediction error
 				if(!(money_invested==0)) //only if the trustee has any choice does the investor gain new information
 				{
@@ -928,8 +931,8 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						belief_updates(&Trustee_node_r, &current_node, k2, trustee_monetary_response , response[game], false); //investor updates on trustee action
 					}
 					shift_updates(&Trustee_node_r, &current_node, k2, trustee_monetary_response); //investor can always get irritated, if action > 0
-				}	
-				
+				}
+
 				//----------------- calculate partner models at level -1 (= k2-1)
 				for(int I_guilt=0; I_guilt < nob; ++I_guilt)
 				{
@@ -950,15 +953,15 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						, ut_init_system
 						, expected_trustee_payoff
 						, expected_outcome_utility
-						, temperature												
+						, temperature
 						, mempool
 						, &current_node);
 						current_node->confirm_exploration(I_guilt, k2);
 					}
-				
+
 				}
 				if(!current_node -> expectation_set(k2))	//set investor expectation
-				{	
+				{
 					if(k2>0)
 					{
 						double sum = 0.0;
@@ -982,7 +985,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 						{
 							running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-						}							
+						}
 						investor_expectation_calculation( k2, &current_node,  running_belief_probability , running_irr_probability);
 					}
 					else
@@ -995,11 +998,11 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						{
 							running_irr_probability[guilt_counter] = 0.0;
 						}
-						running_irr_probability[0] = 1.0;					
+						running_irr_probability[0] = 1.0;
 						investor_expectation_calculation( k2, &current_node,  running_belief_probability , running_irr_probability);
-					}								
-				}		
-				
+					}
+				}
+
 				loc_payoffs = current_node-> get_exp_payoffs(k2); //obtain choice probabilities from investor
 				inv_exp_payoffs = Irritation_Investor -> get_exp_payoffs(0); //obtain irritated investor action probabilities
 				local_shifts = current_node -> get_shifts();	//obtain investor irritation shift
@@ -1008,46 +1011,46 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					if(investor_irr_probability[irr]> 0.0001 )
 					{
 						for(int I_guilt=0; I_guilt < nob; ++I_guilt) //sum over all investor guilt cases
-						{					
-							if(investor_belief_probability[I_guilt] > 0.001) 
+						{
+							if(investor_belief_probability[I_guilt] > 0.001)
 							{
 								for(int second_act = 0; second_act < noa; ++second_act) //sum over all possible investor actions
-								{			
+								{
 									if(loc_payoffs[I_guilt][second_act]> 0.001 && (1.0-local_shifts[k2][irr]) > 0.001)
 									{
 										t_util[first_ret] += investor_belief_probability[I_guilt]*expected_trustee_payoff[trustee_guilt][second_act]*
 										investor_irr_probability[irr]*(1.0-local_shifts[k2][irr])*loc_payoffs[I_guilt][second_act];
 									}
 									if(inv_exp_payoffs[0][second_act]> 0.001 && local_shifts[k2][irr] > 0.001)
-									{											
+									{
 										t_util[first_ret] += investor_irr_probability[irr]*investor_belief_probability[I_guilt]*expected_trustee_payoff[trustee_guilt][second_act]*
-										local_shifts[k2][irr]*inv_exp_payoffs[0][second_act];		
-									}												
-								}						
+										local_shifts[k2][irr]*inv_exp_payoffs[0][second_act];
+									}
+								}
 							}
 						}
 					}
 				}
-				
+
 				Trustee_node_r -> set_payoff(first_ret, t_util[first_ret]);
 			}
-			
+
 			//exp payoffs calc
 			sum = 0.0;
 			double max_util = -100.0;
 			for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)	//find max utility
-			{	
-				max_util = (1.0/temperature*t_util[first_ret] > max_util ? 1.0/temperature*t_util[first_ret]: max_util);									
-			}						
+			{
+				max_util = (1.0/temperature*t_util[first_ret] > max_util ? 1.0/temperature*t_util[first_ret]: max_util);
+			}
 			for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)	//sum the relevant terms
-			{	
+			{
 				if(1.0/temperature*t_util[first_ret]-max_util > -20)
 				{
-					sum += exp(1.0/temperature*t_util[first_ret]);		
+					sum += exp(1.0/temperature*t_util[first_ret]);
 				}
 			}
 			for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)
-			{	
+			{
 				if(1.0/temperature*t_util[first_ret]-max_util > -20)
 				{
 					t_util[first_ret] = exp(1.0/temperature*t_util[first_ret])/sum;	//calculate probability
@@ -1055,9 +1058,9 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 				else
 				{
 					t_util[first_ret] = 0.0;
-				}			
+				}
 				Trustee_node_r -> set_exp_payoffs(first_ret, t_util[first_ret], trustee_guilt, k2+1); //set probabilities
-			}				
+			}
 			//Note: The Trustee_node_r pointer never moves, since the above calculation avoid setting up an unnecessary trustee child node at the second stage
 			Trustee_node_r-> confirm_exploration(trustee_guilt, k2+1);	//set a flag that the node has been calculated for given guilt and level
 
@@ -1073,14 +1076,14 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			boost::array<double, nob> prob_guilt;
 			boost::array<boost::array<double, noa>, nob> inv_exp_payoffs;
 			boost::array<boost::array<double, noa>, nob> loc_payoffs;
-			boost::array<boost::array<double, noa>, nob> tru_prob;				
+			boost::array<boost::array<double, noa>, nob> tru_prob;
 			boost::array<double, noa> t_util;
 			boost::array<double,nob> investor_belief_probability;
 			boost::array<double,nob> running_belief_probability;
 			boost::array<double,noi> investor_irr_probability;
 			boost::array<double,noi> running_irr_probability;
-			boost::array<boost::array<double,noi>, noT> irr_beliefs;					
-			boost::array<boost::array<double, noi>, noT+1> local_shifts;					
+			boost::array<boost::array<double,noi>, noT> irr_beliefs;
+			boost::array<boost::array<double, noi>, noT+1> local_shifts;
 			beliefs = Trustee_node_r -> get_belief_parameters();
 			irr_beliefs = Trustee_node_r-> get_irr_beliefs();
 			double investor_monetary_action=0.0;
@@ -1088,7 +1091,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			for(int o = 0; o < nob; ++o)
 			{
 				sum += beliefs[k2][o];
-			}				
+			}
 			for(int o = 0; o < nob; ++o)
 			{
 				investor_belief_probability[o] = beliefs[k2][o]/sum;
@@ -1097,11 +1100,11 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 			for(int o = 0; o < noi; ++o)
 			{
 				isum += irr_beliefs[k2][o];
-			}			
+			}
 			for(int o = 0; o < noi; ++o)
 			{
-				investor_irr_probability[o] = irr_beliefs[k2][o]/isum;		
-			}					
+				investor_irr_probability[o] = irr_beliefs[k2][o]/isum;
+			}
 			if(k2>0)
 			{
 				sum =0.0;
@@ -1109,11 +1112,11 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 				for(int o = 0; o < nob; ++o)
 				{
 					sum += beliefs[k2-1][o];
-				}						
+				}
 				for(int o = 0; o < noi; ++o)
 				{
 					isum += irr_beliefs[k2-1][o];
-				}						
+				}
 				for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)
 				{
 					running_belief_probability[guilt_counter] = beliefs[k2-1][guilt_counter]/sum;
@@ -1121,7 +1124,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 				for(int irr_counter = 0; irr_counter < noi; ++irr_counter)
 				{
 					running_irr_probability[irr_counter] = irr_beliefs[k2-1][irr_counter]/isum;
-				}				
+				}
 				trustee_expectation_calculation( k2-1, &Trustee_node_r,  running_belief_probability , running_irr_probability, money_invested);
 			}
 			else
@@ -1135,16 +1138,16 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					running_irr_probability[irr_counter] = 0.0;
 				}
 				running_irr_probability[0]= 1.0;
-				trustee_expectation_calculation( -1, &Trustee_node_r,  running_belief_probability , running_irr_probability, money_invested);	
+				trustee_expectation_calculation( -1, &Trustee_node_r,  running_belief_probability , running_irr_probability, money_invested);
 			}
 			double b_sum =0.0;
 			sum = 0.0;
-			double max_val = -100.0;				
+			double max_val = -100.0;
 			for(int update=planning_horizon-game-1; update < (planning_horizon-present_time); ++update)
-			{		
+			{
 				for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)
-				{	
-					t_util[first_ret] = ut_init_system[trustee_guilt](money_invested , first_ret); 
+				{
+					t_util[first_ret] = ut_init_system[trustee_guilt](money_invested , first_ret);
 					action[game] = money_invested;
 					response[game] = first_ret;
 					current_node = Trustee_node_r -> get_child(first_ret);
@@ -1154,24 +1157,24 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						irr_beliefs = Trustee_node_r-> get_irr_beliefs();
 						beliefs = Trustee_node_r -> get_belief_parameters();
 						local_shifts = Trustee_node_r -> get_shifts();
-						for(int l= 0; l < noT; ++l)  
-						{	
+						for(int l= 0; l < noT; ++l)
+						{
 							for(int irr=0; irr < noi; ++irr)
 							{
 								current_node-> set_irr_parameters(irr, irr_beliefs[l][irr], l);
 							}
 							for(int b=0; b < nob; ++b)
-							{		
-								current_node -> set_belief_parameters(b, beliefs[l][b], l);				
-							}		
-						}	
-						for(int level=0; level < noT+1; ++level)  
-						{	
-							for(int irr=0; irr < noi; ++irr)
-							{	
-								current_node -> set_shift(level, local_shifts[level][irr], irr);		
+							{
+								current_node -> set_belief_parameters(b, beliefs[l][b], l);
 							}
-						}						
+						}
+						for(int level=0; level < noT+1; ++level)
+						{
+							for(int irr=0; irr < noi; ++irr)
+							{
+								current_node -> set_shift(level, local_shifts[level][irr], irr);
+							}
+						}
 						Trustee_node_r -> set_child(first_ret, current_node);
 						if((k2+2)%2== 0)
 						{
@@ -1197,7 +1200,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 							for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 							{
 								running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-							}							
+							}
 							investor_expectation_calculation( 0, &current_node,  running_belief_probability , running_irr_probability);
 						}
 						else
@@ -1210,13 +1213,13 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 							{
 								running_irr_probability[guilt_counter] = 0.0;
 							}
-							running_irr_probability[0] = 1.0;					
+							running_irr_probability[0] = 1.0;
 							investor_expectation_calculation( -1, &current_node,  running_belief_probability , running_irr_probability);
-						}								
+						}
 					}
 					irr_beliefs = Trustee_node_r-> get_irr_beliefs();
 					beliefs = Trustee_node_r -> get_belief_parameters();
-					local_shifts = Trustee_node_r -> get_shifts();						
+					local_shifts = Trustee_node_r -> get_shifts();
 					for(int irr=0; irr < noi; ++irr)
 					{
 						current_node-> set_irr_parameters(irr, irr_beliefs[k2][irr], k2);
@@ -1226,18 +1229,18 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						}
 					}
 					for(int b=0; b < nob; ++b)
-					{		
+					{
 						current_node -> set_belief_parameters(b, beliefs[k2][b], k2);
 						if(k2>0)
 						{
-							current_node -> set_belief_parameters(b, beliefs[k2-1][b], k2-1);	
+							current_node -> set_belief_parameters(b, beliefs[k2-1][b], k2-1);
 						}
 					}
 					for(int irr=0; irr < noi; ++irr)
-					{	
-						current_node -> set_shift(k2+1, local_shifts[k2+1][irr], irr);	
-						current_node -> set_shift(k2, local_shifts[k2][irr], irr);	
-					}						
+					{
+						current_node -> set_shift(k2+1, local_shifts[k2+1][irr], irr);
+						current_node -> set_shift(k2, local_shifts[k2][irr], irr);
+					}
 					double trustee_monetary_response = 1/6.0*static_cast<double>(rbf*5*money_invested*response[game]);
 					if(!(money_invested==0))
 					{
@@ -1246,7 +1249,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 							belief_updates(&Trustee_node_r, &current_node, k2, trustee_monetary_response , response[game], false);
 						}
 						shift_updates(&Trustee_node_r, &current_node, k2, trustee_monetary_response);
-					}	
+					}
 					local_shifts = current_node -> get_shifts();
 					for(int I_guilt=0; I_guilt < nob; ++I_guilt)
 					{
@@ -1267,16 +1270,16 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 							, ut_init_system
 							, expected_trustee_payoff
 							, expected_outcome_utility
-							, temperature												
+							, temperature
 							, mempool
 							, &current_node);
 							current_node->confirm_exploration(I_guilt, k2);
 						}
-					
+
 					}
-					
+
 					if(!current_node -> expectation_set(k2))
-					{	
+					{
 						double sum = 0.0;
 						double isum = 0.0;
 						beliefs = current_node -> get_belief_parameters();
@@ -1298,16 +1301,16 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 						{
 							running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-						}							
-						investor_expectation_calculation( k2, &current_node, running_belief_probability , running_irr_probability);						
-					}		
-					
+						}
+						investor_expectation_calculation( k2, &current_node, running_belief_probability , running_irr_probability);
+					}
+
 					loc_payoffs = current_node-> get_exp_payoffs(k2);
 					inv_exp_payoffs = Irritation_Investor -> get_exp_payoffs(0);
 					local_shifts = current_node -> get_shifts();
 
-					for(int second_act = 0; second_act < noa; ++second_act) 
-					{	
+					for(int second_act = 0; second_act < noa; ++second_act)
+					{
 						action[game+1] = second_act;
 						investor_monetary_action = 5.0*static_cast<double>(action[game+1]);
 						Trustee_holder = current_node -> get_child(second_act);
@@ -1317,25 +1320,25 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 							beliefs = current_node -> get_belief_parameters();
 							irr_beliefs = current_node -> get_irr_beliefs();
 							local_shifts = current_node -> get_shifts();
-							for(int l=0; l < noT; ++l)  
-							{	
+							for(int l=0; l < noT; ++l)
+							{
 								for(int nirr=0; nirr < noi; ++nirr)
 								{
 									Trustee_holder-> set_irr_parameters(nirr, irr_beliefs[l][nirr], l);
 								}
 								for(int b=0; b < nob; ++b)
-								{		
-									Trustee_holder-> set_belief_parameters(b, beliefs[l][b], l);				
-								}		
-							}	
-							for(int level=0; level < noT+1; ++level)  
-							{	
-								for(int nirr=0; nirr < noi; ++nirr)
-								{	
-									Trustee_holder -> set_shift(level, local_shifts[level][nirr], nirr);		
+								{
+									Trustee_holder-> set_belief_parameters(b, beliefs[l][b], l);
 								}
-							}									
-							current_node->set_child(action[game+1],Trustee_holder);			
+							}
+							for(int level=0; level < noT+1; ++level)
+							{
+								for(int nirr=0; nirr < noi; ++nirr)
+								{
+									Trustee_holder -> set_shift(level, local_shifts[level][nirr], nirr);
+								}
+							}
+							current_node->set_child(action[game+1],Trustee_holder);
 
 							//level -1
 							if((k2+2)%2==1)
@@ -1345,11 +1348,11 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 								for(int o = 0; o < nob; ++o)
 								{
 									sum += beliefs[0][o];
-								}						
+								}
 								for(int o = 0; o < noi; ++o)
 								{
 									isum += irr_beliefs[0][o];
-								}						
+								}
 								for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)
 								{
 									running_belief_probability[guilt_counter] = beliefs[0][guilt_counter]/sum;
@@ -1357,7 +1360,7 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 								for(int irr_counter = 0; irr_counter < noi; ++irr_counter)
 								{
 									running_irr_probability[irr_counter] = irr_beliefs[0][irr_counter]/isum;
-								}				
+								}
 								trustee_expectation_calculation( 0, &Trustee_holder,  running_belief_probability , running_irr_probability, action[game+1]);
 							}
 							else
@@ -1371,8 +1374,8 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 									running_irr_probability[irr_counter] = 0.0;
 								}
 								running_irr_probability[0]= 1.0;
-								trustee_expectation_calculation( -1, &Trustee_holder, running_belief_probability , running_irr_probability, action[game+1]);	
-							}							
+								trustee_expectation_calculation( -1, &Trustee_holder, running_belief_probability , running_irr_probability, action[game+1]);
+							}
 						}
 
 						beliefs = current_node -> get_belief_parameters();
@@ -1382,28 +1385,28 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 						{
 							Trustee_holder-> set_irr_parameters(nirr, irr_beliefs[k2][nirr], k2);
 							if(k2>0)
-							{								
+							{
 								Trustee_holder-> set_irr_parameters(nirr, irr_beliefs[k2-1][nirr], k2-1);
 							}
 						}
 						for(int b=0; b < nob; ++b)
-						{		
+						{
 							Trustee_holder-> set_belief_parameters(b, beliefs[k2][b], k2);
 							if(k2>0)
 							{
 								Trustee_holder-> set_belief_parameters(b, beliefs[k2-1][b], k2-1);
 							}
-						}		
+						}
 
 						for(int nirr=0; nirr < noi; ++nirr)
-						{	
-							Trustee_holder -> set_shift(k2+1, local_shifts[k2+1][nirr], nirr);	
-							Trustee_holder -> set_shift(k2, local_shifts[k2][nirr], nirr);								
-						}	
+						{
+							Trustee_holder -> set_shift(k2+1, local_shifts[k2+1][nirr], nirr);
+							Trustee_holder -> set_shift(k2, local_shifts[k2][nirr], nirr);
+						}
 
-						belief_updates(&current_node, &Trustee_holder, k2+1, investor_monetary_action , action[game+1], true);	
+						belief_updates(&current_node, &Trustee_holder, k2+1, investor_monetary_action , action[game+1], true);
 						shift_updates(&current_node, &Trustee_holder, k2+1, investor_monetary_action);
-						
+
 						if(!(Trustee_holder->get_confirm_exploration(trustee_guilt, k2+1)))
 						{
 							trustee_k(action[game+1]
@@ -1419,50 +1422,50 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 							, expected_outcome_utility
 							, temperature
 							, mempool
-							, &Trustee_holder);									
-						}				
+							, &Trustee_holder);
+						}
 
 						for(int irr=0; irr < noi; ++irr)
 						{
 							if(investor_irr_probability[irr]> 0.0001 )
 							{
 								for(int I_guilt=0; I_guilt < nob; ++I_guilt)
-								{	
-															
-									if(investor_belief_probability[I_guilt] > 0.001) 
-									{	
+								{
+
+									if(investor_belief_probability[I_guilt] > 0.001)
+									{
 										for(int second_return = 0; second_return < nor(second_act); ++second_return)
 										{
-											tru_prob = Trustee_holder-> get_exp_payoffs(k2+1);									
+											tru_prob = Trustee_holder-> get_exp_payoffs(k2+1);
 											if(loc_payoffs[I_guilt][second_act]> 0.001 && (1.0-local_shifts[k2][irr]) > 0.001 && tru_prob[trustee_guilt][second_return] > 0.001)
 											{
 												t_util[first_ret] += investor_belief_probability[I_guilt]*(Trustee_holder-> get_payoff(second_return))*
 												tru_prob[trustee_guilt][second_return]*investor_irr_probability[irr]*(1.0-local_shifts[k2][irr])*loc_payoffs[I_guilt][second_act];
 											}
 											if(inv_exp_payoffs[0][second_act]> 0.001 && local_shifts[k2][irr] > 0.001 && tru_prob[trustee_guilt][second_return] > 0.001)
-											{											
+											{
 												t_util[first_ret] += investor_irr_probability[irr]*investor_belief_probability[I_guilt]*(Trustee_holder-> get_payoff(second_return))*
-												tru_prob[trustee_guilt][second_return]*local_shifts[k2][irr]*inv_exp_payoffs[0][second_act];		
-											}	
-										}												
-									}						
+												tru_prob[trustee_guilt][second_return]*local_shifts[k2][irr]*inv_exp_payoffs[0][second_act];
+											}
+										}
+									}
 								}
 							}
 						}
 					}
-					
+
 					Trustee_node_r -> set_payoff(first_ret, t_util[first_ret]);
 				}
-				
+
 				//exp payoffs calc
 				sum = 0.0;
 				double max_util = -100.0;
 				for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)
-				{	
-					max_util = (1.0/temperature*t_util[first_ret] > max_util ? 1.0/temperature*t_util[first_ret]: max_util);					
-				}						
+				{
+					max_util = (1.0/temperature*t_util[first_ret] > max_util ? 1.0/temperature*t_util[first_ret]: max_util);
+				}
 				for(int first_ret = 0; first_ret < nor(money_invested); ++first_ret)
-				{	
+				{
 					if(1.0/temperature*t_util[first_ret]-max_util > -20)
 					{
 						sum += exp(1.0/temperature*t_util[first_ret]);
@@ -1478,21 +1481,21 @@ void trustee_k(  int const& money_invested	//necessary to keep track of the star
 					else
 					{
 						t_util[first_ret] = 0.0;
-					}					
+					}
 					Trustee_node_r -> set_exp_payoffs(first_ret, t_util[first_ret], trustee_guilt, k2+1);
-				}				
-			}				
+				}
+			}
 		}
 
 	}
-	
+
 }
 
 void investor_k(  int const& present_time
 					 , int const& planning_horizon
 					 , boost::array<int,noT+1> guilt_parameter
 					 , int const& k1
-					 , boost::array<int, global_time_horizon> const& pastactions 
+					 , boost::array<int, global_time_horizon> const& pastactions
 					 , boost::array<int, global_time_horizon> const& responses
 					 , boost::array<Matrix, nob> const& ui_init_system
 					 , boost::array<Matrix, nob> const& ut_init_system
@@ -1501,13 +1504,13 @@ void investor_k(  int const& present_time
 					 , double const& temperature
 					, MEMORY_POOL<True_node>& mempool
 					,  True_node** reference_node)
-{	
+{
 	std::vector<double> investor_val (noa*global_time_horizon,0.0);
-	boost::array<int, global_time_horizon> action; 
+	boost::array<int, global_time_horizon> action;
 	boost::array<int, global_time_horizon> response;
 	int investor_guilt;
 	boost::array<int, 1> initial_count;
-	boost::array<int, 1> count;	
+	boost::array<int, 1> count;
 	for(int l=0; l < global_time_horizon; ++l)
 	{
 		action[l]=pastactions[l];
@@ -1516,7 +1519,7 @@ void investor_k(  int const& present_time
 	for(int l=0; l < global_time_horizon; ++l)
 	{
 		response[l]=responses[l];
-	}	
+	}
 
 	True_node* current_node;
 	current_node = *reference_node;
@@ -1525,7 +1528,7 @@ void investor_k(  int const& present_time
 
 	True_node* root = current_node;
 	int game = present_time;
-	if((k1 < 0) ) 
+	if((k1 < 0) )
 	{
 		double sum = 0.0;
 		double max_val = -100.0;
@@ -1533,20 +1536,20 @@ void investor_k(  int const& present_time
 		int horizon = 0; //now redundant planning variable
 		sum =0.0;
 		max_val = -100.0;
-		for(int action_loc =0; action_loc < noa; ++action_loc) 
+		for(int action_loc =0; action_loc < noa; ++action_loc)
 		{
 			investor_val[action_loc+noa*horizon] = 0.0;
 
 			for(int g =0; g < nob; ++g) //set payoff und set exp payoff
 			{
 				investor_val[action_loc+noa*horizon] += expected_outcome_utility[investor_guilt][g][action_loc]*1.0/3.0;
-			}	
+			}
 			current_node -> set_payoff(action_loc, investor_val[action_loc+noa*horizon]);
 			max_val = (max_val < investor_val[action_loc+noa*horizon] ? investor_val[action_loc+noa*horizon]:max_val);
 		}
 
 		for(int action_loc =0; action_loc < noa; ++action_loc) //change to local actions later
-		{	
+		{
 			if(1.0/temperature*(investor_val[action_loc+noa*horizon]-max_val) > -20.0)
 			{
 				sum += exp(1.0/temperature*investor_val[action_loc+noa*horizon]);
@@ -1557,16 +1560,16 @@ void investor_k(  int const& present_time
 		{
 			if(1.0/temperature*(investor_val[action_loc+noa*horizon]-max_val) > -20.0)
 			{
-				investor_val[action_loc+noa*horizon] = exp(1.0/temperature*investor_val[action_loc+noa*horizon])/sum;	
+				investor_val[action_loc+noa*horizon] = exp(1.0/temperature*investor_val[action_loc+noa*horizon])/sum;
 			}
 			else
 			{
 				investor_val[action_loc+noa*horizon] = 0.0;
-			}				
+			}
 			current_node-> set_exp_payoffs(action_loc,investor_val[action_loc+noa*horizon], investor_guilt, 0);
 		}
 
-						
+
 		current_node-> confirm_exploration(investor_guilt, 0);
 	}
 	else
@@ -1582,7 +1585,7 @@ void investor_k(  int const& present_time
 			boost::array<double,noi> running_irr_probability;
 			boost::array<boost::array<double,noi>, noT> running_irr_beliefs;
 			boost::array<boost::array<double, noi>, noT+1> local_shifts;
-			if(k1>0) 
+			if(k1>0)
 			{
 				double sum = 0.0;
 				double isum = 0.0;
@@ -1605,21 +1608,21 @@ void investor_k(  int const& present_time
 				for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 				{
 					running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-				}							
-				investor_expectation_calculation( k1-1, &current_node,  running_belief_probability , running_irr_probability);					
-			}	
+				}
+				investor_expectation_calculation( k1-1, &current_node,  running_belief_probability , running_irr_probability);
+			}
 
 			beliefs = current_node -> get_belief_parameters();
-			running_irr_beliefs = current_node -> get_irr_beliefs();				
+			running_irr_beliefs = current_node -> get_irr_beliefs();
 			double sum = 0.0;
 			for(int o = 0; o < nob; ++o)
 			{
 				sum += beliefs[k1][o];
-			}				
+			}
 			for(int o = 0; o < nob; ++o)
 			{
 				trustee_belief_probability[o] = beliefs[k1][o]/sum;
-			}			
+			}
 			double isum = 0.0;
 			running_irr_beliefs = current_node -> get_irr_beliefs();
 			for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
@@ -1630,7 +1633,7 @@ void investor_k(  int const& present_time
 			for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 			{
 				running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-			}						
+			}
 			double max_val = -100.0;
 			int update = 0; //(now redundant planning variable)
 			sum = 0.0;
@@ -1638,24 +1641,24 @@ void investor_k(  int const& present_time
 			double expectation = 0.0;
 			if(k1>0)
 			{
-				expectation = current_node -> get_expectation(k1-1); 
+				expectation = current_node -> get_expectation(k1-1);
 			}
 			else
 			{
 				expectation = current_node -> get_expectation(0);
 			}
-			
-			for(int i_action = 0; i_action < noa; ++i_action) 
+
+			for(int i_action = 0; i_action < noa; ++i_action)
 			{
 				local_shifts = current_node -> get_shifts();
 				investor_val[i_action+noa*update] = 0.0;
 				double investor_monetary_action = 5.0*static_cast<double>(i_action);
 				double disappointment =  expectation -  investor_monetary_action;
 				for(int irr=0; irr < noi; ++irr)
-				{												
+				{
 					local_shifts[k1][irr] = (disappointment > 0.0 ? 1.0/static_cast<double>(noi-1)*static_cast<double>(irr):(-1.0/static_cast<double>(noi-1)*static_cast<double>(irr))) + local_shifts[k1][irr];
 					local_shifts[k1][irr] = (local_shifts[k1][irr] > 1.0 ? 1.0:local_shifts[k1][irr]);
-					local_shifts[k1][irr] = (local_shifts[k1][irr] < 0.0 ? 0.0:local_shifts[k1][irr]);													
+					local_shifts[k1][irr] = (local_shifts[k1][irr] < 0.0 ? 0.0:local_shifts[k1][irr]);
 				}
 
 				for(int irr_counter = 0; irr_counter < noi; ++irr_counter)
@@ -1675,31 +1678,31 @@ void investor_k(  int const& present_time
 							}
 						}
 					}
-				}							
+				}
 				current_node -> set_payoff(i_action, investor_val[i_action+noa*update]);
 				max_val = (max_val < investor_val[i_action+noa*update] ? investor_val[i_action+noa*update]:max_val);
-				
+
 				for(int i_action = 0; i_action < noa; ++i_action)
-				{	
+				{
 					if(1.0/temperature*(investor_val[i_action+noa*update]-max_val) > -20.0)
 					{
 						sum+= exp(1.0/temperature*investor_val[i_action+noa*update]);
 					}
 
-				}					
+				}
 				for(int i_action = 0; i_action < noa; ++i_action)
-				{	
+				{
 					if(1.0/temperature*(investor_val[i_action+noa*update]-max_val) > -20.0)
 					{
-						investor_val[i_action+noa*update] = exp(1.0/temperature*investor_val[i_action+noa*update])/sum;	
+						investor_val[i_action+noa*update] = exp(1.0/temperature*investor_val[i_action+noa*update])/sum;
 					}
 					else
 					{
 						investor_val[i_action+noa*update] = 0.0;
-					}			
+					}
 					current_node -> set_exp_payoffs(i_action, investor_val[i_action+noa*update], investor_guilt, k1+1);
 				}
-			}	
+			}
 
 			current_node -> confirm_exploration(investor_guilt, k1+1);
 		}
@@ -1713,18 +1716,18 @@ void investor_k(  int const& present_time
 			boost::array<boost::array<double, nob>, noT> beliefs;
 			boost::array<boost::array<double, nob>, noT> updated_beliefs;
 			boost::array<boost::array<double, noa>, nob> tru_exp_payoffs;
-			boost::array<boost::array<double, noa>, nob> repay_probability;				
+			boost::array<boost::array<double, noa>, nob> repay_probability;
 			boost::array<boost::array<double, noa>, nob> i_util;
 			boost::array<double,noi> investor_irr_probability;
 			boost::array<double,noi> running_irr_probability;
 			boost::array<double,nob> trustee_belief_probability;
 			boost::array<double,nob> running_belief_probability;
-			boost::array<boost::array<double,noi>, noT> irr_beliefs;					
-			boost::array<boost::array<double, noi>, noT+1> local_shifts;				
+			boost::array<boost::array<double,noi>, noT> irr_beliefs;
+			boost::array<boost::array<double, noi>, noT+1> local_shifts;
 			beliefs = current_node -> get_belief_parameters();
 			irr_beliefs = current_node -> get_irr_beliefs();
-			local_shifts = current_node -> get_shifts();				
-			if(k1>0) //-1 is always explored & expectation already built 
+			local_shifts = current_node -> get_shifts();
+			if(k1>0) //-1 is always explored & expectation already built
 			{
 				double sum = 0.0;
 				double isum = 0.0;
@@ -1747,11 +1750,11 @@ void investor_k(  int const& present_time
 				for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 				{
 					running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-				}							
-				investor_expectation_calculation( k1-1, &current_node,  running_belief_probability , running_irr_probability);					
-			}	
+				}
+				investor_expectation_calculation( k1-1, &current_node,  running_belief_probability , running_irr_probability);
+			}
 			beliefs = current_node -> get_belief_parameters();
-			irr_beliefs = current_node -> get_irr_beliefs();				
+			irr_beliefs = current_node -> get_irr_beliefs();
 			double isum = 0.0;
 			for(int o = 0; o < noi; ++o)
 			{
@@ -1760,12 +1763,12 @@ void investor_k(  int const& present_time
 			for(int o = 0; o < noi; ++o)
 			{
 				investor_irr_probability[o] = irr_beliefs[k1][o]/isum;
-			}						
+			}
 			double sum =0.0;
 			for(int o = 0; o < nob; ++o)
 			{
 				sum += beliefs[k1][o];
-			}				
+			}
 			for(int o = 0; o < nob; ++o)
 			{
 				trustee_belief_probability[o] = beliefs[k1][o]/sum;
@@ -1774,8 +1777,8 @@ void investor_k(  int const& present_time
 			double b_sum =0.0;
 			double i_sum = 0.0;
 			sum = 0.0;
-			double max_val = -100.0;			
-						
+			double max_val = -100.0;
+
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				Trustee_node_r = current_node -> get_child(first_act);
@@ -1787,24 +1790,24 @@ void investor_k(  int const& present_time
 					beliefs = current_node -> get_belief_parameters();
 					irr_beliefs = current_node -> get_irr_beliefs();
 					local_shifts = current_node -> get_shifts();
-					for(int l=0; l < noT; ++l)  
-					{	
+					for(int l=0; l < noT; ++l)
+					{
 						for(int b=0; b < nob; ++b)
-						{		
-							Trustee_node_r-> set_belief_parameters(b, beliefs[l][b], l);				
+						{
+							Trustee_node_r-> set_belief_parameters(b, beliefs[l][b], l);
 						}
 						for(int irr=0; irr < noi; ++irr)
 						{
 							Trustee_node_r-> set_irr_parameters(irr, irr_beliefs[l][irr], l);
-						}					
-					}	
-					for(int level=0; level < noT+1; ++level)  
-					{	
-						for(int irr=0; irr < noi; ++irr)
-						{	
-							Trustee_node_r -> set_shift(level, local_shifts[level][irr], irr);		
 						}
-					}	
+					}
+					for(int level=0; level < noT+1; ++level)
+					{
+						for(int irr=0; irr < noi; ++irr)
+						{
+							Trustee_node_r -> set_shift(level, local_shifts[level][irr], irr);
+						}
+					}
 					//level -1
 					if((k1+2)%2==0)
 					{
@@ -1813,11 +1816,11 @@ void investor_k(  int const& present_time
 						for(int o = 0; o < nob; ++o)
 						{
 							sum += beliefs[0][o];
-						}						
+						}
 						for(int o = 0; o < noi; ++o)
 						{
 							isum += irr_beliefs[0][o];
-						}						
+						}
 						for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)
 						{
 							running_belief_probability[guilt_counter] = beliefs[0][guilt_counter]/sum;
@@ -1825,7 +1828,7 @@ void investor_k(  int const& present_time
 						for(int irr_counter = 0; irr_counter < noi; ++irr_counter)
 						{
 							running_irr_probability[irr_counter] = irr_beliefs[0][irr_counter]/isum;
-						}				
+						}
 						trustee_expectation_calculation( 0, &Trustee_node_r,  running_belief_probability , running_irr_probability, action[game]);
 					}
 					else
@@ -1839,19 +1842,19 @@ void investor_k(  int const& present_time
 							running_irr_probability[irr_counter] = 0.0;
 						}
 						running_irr_probability[0]= 1.0;
-						trustee_expectation_calculation( -1, &Trustee_node_r,  running_belief_probability , running_irr_probability, action[game]);	
-					}								
+						trustee_expectation_calculation( -1, &Trustee_node_r,  running_belief_probability , running_irr_probability, action[game]);
+					}
 				}
 				beliefs = current_node -> get_belief_parameters();
 				irr_beliefs = current_node -> get_irr_beliefs();
 				local_shifts = current_node -> get_shifts();
 				for(int b=0; b < nob; ++b)
-				{	
+				{
 					if(k1>0)
 					{
-						Trustee_node_r-> set_belief_parameters(b, beliefs[k1-1][b], k1-1);	
+						Trustee_node_r-> set_belief_parameters(b, beliefs[k1-1][b], k1-1);
 					}
-					Trustee_node_r-> set_belief_parameters(b, beliefs[k1][b], k1);	
+					Trustee_node_r-> set_belief_parameters(b, beliefs[k1][b], k1);
 				}
 				for(int irr=0; irr < noi; ++irr)
 				{
@@ -1860,13 +1863,13 @@ void investor_k(  int const& present_time
 						Trustee_node_r-> set_irr_parameters(irr, irr_beliefs[k1-1][irr], k1-1);
 					}
 					Trustee_node_r-> set_irr_parameters(irr, irr_beliefs[k1][irr], k1);
-				}		
+				}
 				for(int irr=0; irr < noi; ++irr)
-				{	
-					Trustee_node_r -> set_shift(k1, local_shifts[k1][irr], irr);	
-					Trustee_node_r -> set_shift(k1+1, local_shifts[k1+1][irr], irr);								
-				}						
-				
+				{
+					Trustee_node_r -> set_shift(k1, local_shifts[k1][irr], irr);
+					Trustee_node_r -> set_shift(k1+1, local_shifts[k1+1][irr], irr);
+				}
+
 				double investor_monetary_action = 5.0*static_cast<double>(first_act);
 				if(k1>0)
 				{
@@ -1874,12 +1877,12 @@ void investor_k(  int const& present_time
 				}
 				shift_updates(&current_node, &Trustee_node_r, k1, investor_monetary_action);
 				i_util[investor_guilt][first_act] = 0.0;
-				
+
 				for(int guilt = 0; guilt < nob; ++guilt)
 				{
 					if(k1 > 0)
 					{
-						guilt_parameter[k1-1]=guilt; 
+						guilt_parameter[k1-1]=guilt;
 					}
 					guilt_parameter[noT]=guilt;
 					if(!(Trustee_node_r->get_confirm_exploration(guilt, k1)))
@@ -1897,9 +1900,9 @@ void investor_k(  int const& present_time
 						, expected_outcome_utility
 						, temperature
 						, mempool
-						, &Trustee_node_r);	
-						Trustee_node_r -> confirm_exploration(guilt, k1);								
-					}								
+						, &Trustee_node_r);
+						Trustee_node_r -> confirm_exploration(guilt, k1);
+					}
 				}
 
 				double sum = 0.0;
@@ -1923,22 +1926,22 @@ void investor_k(  int const& present_time
 				for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 				{
 					running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-				}							
-				trustee_expectation_calculation( k1, &Trustee_node_r,  running_belief_probability , running_irr_probability, first_act);					
-		
-				repay_probability = Trustee_node_r -> get_exp_payoffs(k1); 
+				}
+				trustee_expectation_calculation( k1, &Trustee_node_r,  running_belief_probability , running_irr_probability, first_act);
+
+				repay_probability = Trustee_node_r -> get_exp_payoffs(k1);
 				tru_exp_payoffs = Trustee_node_r -> get_exp_payoffs(0);
 				local_shifts = Trustee_node_r -> get_shifts();
-				for(int first_ret = 0; first_ret < nor(first_act); ++first_ret) 
+				for(int first_ret = 0; first_ret < nor(first_act); ++first_ret)
 				{
 					response[game]=first_ret;
 					for(int irr_counter=0; irr_counter < noi; ++irr_counter)
 					{
 						if(investor_irr_probability[irr_counter] > 0.001)
 						{
-							for(int guilt = 0; guilt < nob; ++guilt) 
+							for(int guilt = 0; guilt < nob; ++guilt)
 							{
-								if(trustee_belief_probability[guilt] > 0.001 ) 
+								if(trustee_belief_probability[guilt] > 0.001 )
 								{
 									if((1.0-local_shifts[k1][irr_counter]) > 0.001 & repay_probability[guilt][first_ret] > 0.001)
 									{
@@ -1948,37 +1951,37 @@ void investor_k(  int const& present_time
 									if(local_shifts[k1][irr_counter] > 0.001 & tru_exp_payoffs[0][first_ret] > 0.001)
 									{
 										i_util[investor_guilt][first_act] += local_shifts[k1][irr_counter]*ui_init_system[investor_guilt](first_act, first_ret)*
-										trustee_belief_probability[guilt]*tru_exp_payoffs[0][first_ret]*investor_irr_probability[irr_counter]; 
+										trustee_belief_probability[guilt]*tru_exp_payoffs[0][first_ret]*investor_irr_probability[irr_counter];
 									}
 								}
-							}	
+							}
 						}
-					}								
+					}
 					beliefs = Trustee_node_r -> get_belief_parameters();
 					irr_beliefs = Trustee_node_r -> get_irr_beliefs();
-					local_shifts = Trustee_node_r -> get_shifts();							
-					investor_holder = Trustee_node_r -> get_child(first_ret);								
+					local_shifts = Trustee_node_r -> get_shifts();
+					investor_holder = Trustee_node_r -> get_child(first_ret);
 					if(!investor_holder)
 					{
 						investor_holder = new True_node();
 						Trustee_node_r -> set_child( first_ret, investor_holder);
 
-						for(int l=0; l < noT; ++l)  
-						{	
+						for(int l=0; l < noT; ++l)
+						{
 							for(int b=0; b < nob; ++b)
-							{		
-								investor_holder -> set_belief_parameters(b, beliefs[l][b], l);				
+							{
+								investor_holder -> set_belief_parameters(b, beliefs[l][b], l);
 							}
 							for(int irr=0; irr < noi; ++irr)
 							{
 								investor_holder -> set_irr_parameters(irr, irr_beliefs[l][irr], l);
-							}					
-						}	
-						for(int level=0; level < noT+1; ++level)  
-						{	
+							}
+						}
+						for(int level=0; level < noT+1; ++level)
+						{
 							for(int irr=0; irr < noi; ++irr)
-							{	
-								investor_holder -> set_shift(level, local_shifts[level][irr], irr);		
+							{
+								investor_holder -> set_shift(level, local_shifts[level][irr], irr);
 							}
 						}
 						//level -1
@@ -2006,7 +2009,7 @@ void investor_k(  int const& present_time
 							for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 							{
 								running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-							}							
+							}
 							investor_expectation_calculation( 0, &investor_holder,  running_belief_probability , running_irr_probability);
 						}
 						else
@@ -2019,17 +2022,17 @@ void investor_k(  int const& present_time
 							{
 								running_irr_probability[guilt_counter] = 0.0;
 							}
-							running_irr_probability[0] = 1.0;					
+							running_irr_probability[0] = 1.0;
 							investor_expectation_calculation( -1, &investor_holder, running_belief_probability , running_irr_probability);
-						}															
+						}
 					}
 					for(int b=0; b < nob; ++b)
 					{
 						if(k1>0)
 						{
-							investor_holder -> set_belief_parameters(b, beliefs[k1-1][b], k1-1);	
+							investor_holder -> set_belief_parameters(b, beliefs[k1-1][b], k1-1);
 						}
-						investor_holder -> set_belief_parameters(b, beliefs[k1][b], k1);	
+						investor_holder -> set_belief_parameters(b, beliefs[k1][b], k1);
 					}
 					for(int irr=0; irr < noi; ++irr)
 					{
@@ -2038,12 +2041,12 @@ void investor_k(  int const& present_time
 							investor_holder-> set_irr_parameters(irr, irr_beliefs[k1-1][irr], k1-1);
 						}
 							investor_holder-> set_irr_parameters(irr, irr_beliefs[k1][irr], k1);
-					}		
+					}
 					for(int irr=0; irr < noi; ++irr)
-					{	
-						investor_holder -> set_shift(k1, local_shifts[k1][irr], irr);	
-						investor_holder -> set_shift(k1+1, local_shifts[k1+1][irr], irr);								
-					}										
+					{
+						investor_holder -> set_shift(k1, local_shifts[k1][irr], irr);
+						investor_holder -> set_shift(k1+1, local_shifts[k1+1][irr], irr);
+					}
 					double trustee_monetary_action = 5.0/6.0*static_cast<double>(rbf*first_ret*first_act);
 					if(!action[game]==0)
 					{
@@ -2053,14 +2056,14 @@ void investor_k(  int const& present_time
 					sum = 0.0;
 					isum = 0.0;
 					beliefs = investor_holder -> get_belief_parameters();
-					irr_beliefs = investor_holder -> get_irr_beliefs();	
+					irr_beliefs = investor_holder -> get_irr_beliefs();
 					if(k1>0)
 					{
 						for(int guilt = 0; guilt < nob; ++guilt)
 						{
 							if(k1 > 1)
 							{
-								guilt_parameter[k1-2]=guilt; 
+								guilt_parameter[k1-2]=guilt;
 							}
 							guilt_parameter[noT]=guilt;
 							if(!(investor_holder ->get_confirm_exploration(guilt, k1-1)))
@@ -2077,11 +2080,11 @@ void investor_k(  int const& present_time
 								, expected_outcome_utility
 								, temperature
 								, mempool
-								, &investor_holder);	
-								investor_holder -> confirm_exploration(guilt, k1-1);								
-							}								
-						}	
-					}							
+								, &investor_holder);
+								investor_holder -> confirm_exploration(guilt, k1-1);
+							}
+						}
+					}
 					if(k1 > 0)
 					{
 						for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
@@ -2101,7 +2104,7 @@ void investor_k(  int const& present_time
 						for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 						{
 							running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-						}							
+						}
 						investor_expectation_calculation( k1-1, &investor_holder,  running_belief_probability , running_irr_probability);
 					}
 					else
@@ -2114,57 +2117,57 @@ void investor_k(  int const& present_time
 						{
 							running_irr_probability[guilt_counter] = 0.0;
 						}
-						running_irr_probability[0] = 1.0;						
-						investor_expectation_calculation( k1-1, &investor_holder,  running_belief_probability , running_irr_probability);								
+						running_irr_probability[0] = 1.0;
+						investor_expectation_calculation( k1-1, &investor_holder,  running_belief_probability , running_irr_probability);
 					}
-											
+
 					beliefs = investor_holder -> get_belief_parameters();
 					irr_beliefs = investor_holder -> get_irr_beliefs();
 					b_sum =0.0;
 					i_sum = 0.0;
-					for(int believed_guilt =0; believed_guilt < nob; ++believed_guilt) 
+					for(int believed_guilt =0; believed_guilt < nob; ++believed_guilt)
 					{
 						updated_beliefs[k1][believed_guilt] = beliefs[k1][believed_guilt];
-						b_sum += updated_beliefs[k1][believed_guilt];						
+						b_sum += updated_beliefs[k1][believed_guilt];
 					}
-					for(int believed_irr =0; believed_irr < noi; ++believed_irr) 
+					for(int believed_irr =0; believed_irr < noi; ++believed_irr)
 					{
 						i_sum += irr_beliefs[k1][believed_irr];
-					}							
-					
+					}
+
 					for(int i_action = 0; i_action < noa; ++i_action)
-					{		
+					{
 						investor_val[i_action] = 0.0;
 					}
 					double expectation = 0.0;
 					if(k1>0)
 					{
-						expectation = investor_holder->get_expectation(k1-1); 
+						expectation = investor_holder->get_expectation(k1-1);
 					}
 					else
 					{
 						expectation = investor_holder->get_expectation(0);
 					}
-					for(int second_act = 0; second_act < noa; ++second_act) 
-					{	
+					for(int second_act = 0; second_act < noa; ++second_act)
+					{
 						local_shifts = investor_holder -> get_shifts();
-						for(int believed_irr=0; believed_irr < noi; ++believed_irr)	
-						{		
+						for(int believed_irr=0; believed_irr < noi; ++believed_irr)
+						{
 							prob_irr[believed_irr] = irr_beliefs[k1][believed_irr]/i_sum;
 							double investor_monetary_action = 5.0*static_cast<double>(second_act);
 							double disappointment =  expectation -  investor_monetary_action;
 							local_shifts[k1][believed_irr] = (disappointment > 0.0 ? 1.0/static_cast<double>(noi-1)*static_cast<double>(believed_irr):(-1.0/static_cast<double>(noi-1)*static_cast<double>(believed_irr))) + local_shifts[k1][believed_irr];
 							local_shifts[k1][believed_irr] = (local_shifts[k1][believed_irr] > 1.0 ? 1.0:local_shifts[k1][believed_irr]);
-							local_shifts[k1][believed_irr] = (local_shifts[k1][believed_irr] < 0.0 ? 0.0:local_shifts[k1][believed_irr]);	
+							local_shifts[k1][believed_irr] = (local_shifts[k1][believed_irr] < 0.0 ? 0.0:local_shifts[k1][believed_irr]);
 							if(prob_irr[believed_irr]>0.001)
 							{
 								for(int believed_guilt =0; believed_guilt < nob; ++believed_guilt)
-								{							
-									prob_guilt[believed_guilt] = updated_beliefs[k1][believed_guilt]/b_sum;	
-									if(prob_guilt[believed_guilt] > 0.001) 
-									{					
+								{
+									prob_guilt[believed_guilt] = updated_beliefs[k1][believed_guilt]/b_sum;
+									if(prob_guilt[believed_guilt] > 0.001)
+									{
 										if((1.0-local_shifts[k1][believed_irr]) > 0.001 )
-										{										
+										{
 											investor_val[second_act] += (1.0-local_shifts[k1][believed_irr])*(expected_outcome_utility[investor_guilt][believed_guilt][second_act]
 											*prob_guilt[believed_guilt]*prob_irr[believed_irr]);
 										}
@@ -2180,12 +2183,12 @@ void investor_k(  int const& present_time
 					}
 					sum =0.0;
 					double max_val  = -100.0;
-					for(int second_act = 0; second_act < noa; ++second_act) 
-					{	
-						max_val = (max_val < 1.0/temperature*investor_val[second_act] ? 1.0/temperature*investor_val[second_act]:max_val);						
-					}							
 					for(int second_act = 0; second_act < noa; ++second_act)
-					{	
+					{
+						max_val = (max_val < 1.0/temperature*investor_val[second_act] ? 1.0/temperature*investor_val[second_act]:max_val);
+					}
+					for(int second_act = 0; second_act < noa; ++second_act)
+					{
 						if(1.0/temperature*investor_val[second_act] - max_val > -20.0)
 						{
 							sum += exp(1.0/temperature*investor_val[second_act]);
@@ -2193,7 +2196,7 @@ void investor_k(  int const& present_time
 
 					}
 					for(int second_act = 0; second_act < noa; ++second_act)
-					{	
+					{
 						if(1.0/temperature*investor_val[second_act] - max_val > -20.0)
 						{
 							prob[second_act] =  exp(1.0/temperature*investor_val[second_act])/sum;
@@ -2201,19 +2204,19 @@ void investor_k(  int const& present_time
 						else
 						{
 							prob[second_act] = 0.0;
-						}					
-					}	
-					local_shifts = Trustee_node_r -> get_shifts();	
-					for(int believed_irr=0; believed_irr < noi; ++believed_irr)	
-					{									
-						for(int guilt = 0; guilt < nob; ++guilt) 
-						{	
+						}
+					}
+					local_shifts = Trustee_node_r -> get_shifts();
+					for(int believed_irr=0; believed_irr < noi; ++believed_irr)
+					{
+						for(int guilt = 0; guilt < nob; ++guilt)
+						{
 							if(trustee_belief_probability[guilt] > 0.001 & repay_probability[guilt][first_ret] > 0.001)
-							{						
+							{
 								for(int second_act = 0; second_act < noa; ++second_act)
 								{
 									if(prob[second_act] > 0.0001 )
-									{			
+									{
 										if((1.0-local_shifts[k1][believed_irr]) > 0.001 && repay_probability[guilt][first_ret]>0.001)
 										{
 											i_util[investor_guilt][first_act] += prob[second_act]*investor_val[second_act]*trustee_belief_probability[guilt]*investor_irr_probability[believed_irr]*
@@ -2223,24 +2226,24 @@ void investor_k(  int const& present_time
 										{
 											i_util[investor_guilt][first_act] += prob[second_act]*investor_val[second_act]*trustee_belief_probability[guilt]*investor_irr_probability[believed_irr]*
 											local_shifts[k1][believed_irr]*tru_exp_payoffs[0][first_ret];
-										}												
-									}											
+										}
+									}
 								}
 							}
 						}
 					}
-						
+
 				}
 				current_node -> set_payoff(first_act, i_util[investor_guilt][first_act]);
-				
+
 			}
 			//}
 			sum = 0.0;
-			double max_val  = -100.0;
+			// double max_val  = -100.0;
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
-				max_val = (max_val < 1.0/temperature*i_util[investor_guilt][first_act] ? 1.0/temperature*i_util[investor_guilt][first_act]:max_val);					
-			}	
+				max_val = (max_val < 1.0/temperature*i_util[investor_guilt][first_act] ? 1.0/temperature*i_util[investor_guilt][first_act]:max_val);
+			}
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				if(1.0/temperature*i_util[investor_guilt][first_act]-max_val > -20.0)
@@ -2251,21 +2254,21 @@ void investor_k(  int const& present_time
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				if(1.0/temperature*i_util[investor_guilt][first_act]-max_val > -20.0)
-				{					
+				{
 					i_util[investor_guilt][first_act] = exp(1.0/temperature*i_util[investor_guilt][first_act])/sum;
 				}
 				else
 				{
 					i_util[investor_guilt][first_act] = 0.0;
-				}					
+				}
 				current_node -> set_exp_payoffs(first_act, i_util[investor_guilt][first_act], investor_guilt, k1+1);
-			}				
-				
-			current_node -> confirm_exploration(investor_guilt, k1+1);	
-		}	
+			}
+
+			current_node -> confirm_exploration(investor_guilt, k1+1);
+		}
 
 		if(planning_horizon-game > 2)
-		{			
+		{
 			int investor_guilt = guilt_parameter[k1];
 			True_node* investor_holder;
 			boost::array<double, noa> prob;
@@ -2274,20 +2277,20 @@ void investor_k(  int const& present_time
 			boost::array<boost::array<double, nob>, noT> beliefs;
 			boost::array<boost::array<double, nob>, noT> updated_beliefs;
 			boost::array<boost::array<double, noa>, nob> tru_exp_payoffs;
-			boost::array<boost::array<double, noa>, nob> repay_probability;	
-			boost::array<boost::array<double, noa>, nob> hold_payoffs;	
+			boost::array<boost::array<double, noa>, nob> repay_probability;
+			boost::array<boost::array<double, noa>, nob> hold_payoffs;
 			boost::array<boost::array<double, noa>, nob> i_util;
 			boost::array<double,nob> investor_belief_probability;
 			boost::array<double,noi> investor_irr_probability;
 			boost::array<double,noi> running_irr_probability;
 			boost::array<double,nob> trustee_belief_probability;
 			boost::array<double,nob> running_belief_probability;
-			boost::array<boost::array<double,noi>, noT> irr_beliefs;					
-			boost::array<boost::array<double, noi>, noT+1> local_shifts;				
+			boost::array<boost::array<double,noi>, noT> irr_beliefs;
+			boost::array<boost::array<double, noi>, noT+1> local_shifts;
 			beliefs = current_node -> get_belief_parameters();
 			irr_beliefs = current_node -> get_irr_beliefs();
-			local_shifts = current_node -> get_shifts();			
-			if(k1>0) 
+			local_shifts = current_node -> get_shifts();
+			if(k1>0)
 			{
 				double sum = 0.0;
 				double isum = 0.0;
@@ -2310,11 +2313,11 @@ void investor_k(  int const& present_time
 				for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 				{
 					running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-				}							
-				investor_expectation_calculation( k1-1, &current_node, running_belief_probability , running_irr_probability);					
-			}	
+				}
+				investor_expectation_calculation( k1-1, &current_node, running_belief_probability , running_irr_probability);
+			}
 			beliefs = current_node -> get_belief_parameters();
-			irr_beliefs = current_node -> get_irr_beliefs();				
+			irr_beliefs = current_node -> get_irr_beliefs();
 			double isum = 0.0;
 			for(int o = 0; o < noi; ++o)
 			{
@@ -2323,12 +2326,12 @@ void investor_k(  int const& present_time
 			for(int o = 0; o < noi; ++o)
 			{
 				investor_irr_probability[o] = irr_beliefs[k1][o]/isum;
-			}						
+			}
 			double sum =0.0;
 			for(int o = 0; o < nob; ++o)
 			{
 				sum += beliefs[k1][o];
-			}				
+			}
 			for(int o = 0; o < nob; ++o)
 			{
 				trustee_belief_probability[o] = beliefs[k1][o]/sum;
@@ -2337,14 +2340,14 @@ void investor_k(  int const& present_time
 			double b_sum =0.0;
 			double i_sum = 0.0;
 			sum = 0.0;
-			double max_val = -100.0;						
+			// double max_val = -100.0;
 
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				action[game]=first_act; //followed by update
-				double investor_monetary_action = 5.0*static_cast<double>(first_act);						
+				double investor_monetary_action = 5.0*static_cast<double>(first_act);
 				Trustee_node_r = current_node -> get_child(first_act);
-	
+
 				if(!Trustee_node_r)
 				{
 					Trustee_node_r = new True_node();
@@ -2352,22 +2355,22 @@ void investor_k(  int const& present_time
 					beliefs = current_node -> get_belief_parameters();
 					irr_beliefs = current_node -> get_irr_beliefs();
 					local_shifts = current_node -> get_shifts();
-					for(int l=0; l < noT; ++l)  
-					{	
+					for(int l=0; l < noT; ++l)
+					{
 						for(int b=0; b < nob; ++b)
-						{		
-							Trustee_node_r-> set_belief_parameters(b, beliefs[l][b], l);				
+						{
+							Trustee_node_r-> set_belief_parameters(b, beliefs[l][b], l);
 						}
 						for(int irr=0; irr < noi; ++irr)
 						{
 							Trustee_node_r-> set_irr_parameters(irr, irr_beliefs[l][irr], l);
-						}					
-					}	
-					for(int level=0; level < noT+1; ++level)  
-					{	
+						}
+					}
+					for(int level=0; level < noT+1; ++level)
+					{
 						for(int irr=0; irr < noi; ++irr)
-						{	
-							Trustee_node_r -> set_shift(level, local_shifts[level][irr], irr);		
+						{
+							Trustee_node_r -> set_shift(level, local_shifts[level][irr], irr);
 						}
 					}
 					//level -1
@@ -2378,11 +2381,11 @@ void investor_k(  int const& present_time
 						for(int o = 0; o < nob; ++o)
 						{
 							sum += beliefs[0][o];
-						}						
+						}
 						for(int o = 0; o < noi; ++o)
 						{
 							isum += irr_beliefs[0][o];
-						}						
+						}
 						for(int guilt_counter = 0; guilt_counter < nob; ++guilt_counter)
 						{
 							running_belief_probability[guilt_counter] = beliefs[0][guilt_counter]/sum;
@@ -2390,7 +2393,7 @@ void investor_k(  int const& present_time
 						for(int irr_counter = 0; irr_counter < noi; ++irr_counter)
 						{
 							running_irr_probability[irr_counter] = irr_beliefs[0][irr_counter]/isum;
-						}				
+						}
 						trustee_expectation_calculation( 0, &Trustee_node_r, running_belief_probability , running_irr_probability, action[game]);
 					}
 					else
@@ -2404,19 +2407,19 @@ void investor_k(  int const& present_time
 							running_irr_probability[irr_counter] = 0.0;
 						}
 						running_irr_probability[0]= 1.0;
-						trustee_expectation_calculation( -1, &Trustee_node_r, running_belief_probability , running_irr_probability, action[game]);	
-					}							
+						trustee_expectation_calculation( -1, &Trustee_node_r, running_belief_probability , running_irr_probability, action[game]);
+					}
 				}
 				beliefs = current_node -> get_belief_parameters();
 				irr_beliefs = current_node -> get_irr_beliefs();
 				local_shifts = current_node -> get_shifts();
 				for(int b=0; b < nob; ++b)
-				{	
+				{
 					if(k1>0)
 					{
-						Trustee_node_r-> set_belief_parameters(b, beliefs[k1-1][b], k1-1);	
+						Trustee_node_r-> set_belief_parameters(b, beliefs[k1-1][b], k1-1);
 					}
-					Trustee_node_r-> set_belief_parameters(b, beliefs[k1][b], k1);	
+					Trustee_node_r-> set_belief_parameters(b, beliefs[k1][b], k1);
 				}
 				for(int irr=0; irr < noi; ++irr)
 				{
@@ -2425,12 +2428,12 @@ void investor_k(  int const& present_time
 						Trustee_node_r-> set_irr_parameters(irr, irr_beliefs[k1-1][irr], k1-1);
 					}
 					Trustee_node_r-> set_irr_parameters(irr, irr_beliefs[k1][irr], k1);
-				}		
+				}
 				for(int irr=0; irr < noi; ++irr)
-				{	
-					Trustee_node_r -> set_shift(k1, local_shifts[k1][irr], irr);	
-					Trustee_node_r -> set_shift(k1+1, local_shifts[k1+1][irr], irr);								
-				}						
+				{
+					Trustee_node_r -> set_shift(k1, local_shifts[k1][irr], irr);
+					Trustee_node_r -> set_shift(k1+1, local_shifts[k1+1][irr], irr);
+				}
 
 				if(k1>0)
 				{
@@ -2439,12 +2442,12 @@ void investor_k(  int const& present_time
 				shift_updates(&current_node, &Trustee_node_r, k1, investor_monetary_action);
 
 				i_util[investor_guilt][first_act] = 0.0;
-				
+
 				for(int guilt = 0; guilt < nob; ++guilt)
 				{
 					if(k1 > 0)
 					{
-						guilt_parameter[k1-1]=guilt; 
+						guilt_parameter[k1-1]=guilt;
 					}
 					guilt_parameter[noT]=guilt;
 					if(!(Trustee_node_r->get_confirm_exploration(guilt, k1)))
@@ -2462,9 +2465,9 @@ void investor_k(  int const& present_time
 						, expected_outcome_utility
 						, temperature
 						, mempool
-						, &Trustee_node_r);	
-						Trustee_node_r -> confirm_exploration(guilt, k1);								
-					}		
+						, &Trustee_node_r);
+						Trustee_node_r -> confirm_exploration(guilt, k1);
+					}
 				}
 
 				double sum = 0.0;
@@ -2488,22 +2491,22 @@ void investor_k(  int const& present_time
 				for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 				{
 					running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-				}							
-				trustee_expectation_calculation( k1, &Trustee_node_r, running_belief_probability , running_irr_probability, first_act);					
+				}
+				trustee_expectation_calculation( k1, &Trustee_node_r, running_belief_probability , running_irr_probability, first_act);
 
-				repay_probability = Trustee_node_r -> get_exp_payoffs(k1); 
+				repay_probability = Trustee_node_r -> get_exp_payoffs(k1);
 				tru_exp_payoffs = Trustee_node_r -> get_exp_payoffs(0);
 				local_shifts = Trustee_node_r -> get_shifts();
-				for(int first_ret = 0; first_ret < nor(first_act); ++first_ret) 
+				for(int first_ret = 0; first_ret < nor(first_act); ++first_ret)
 				{
 					response[game]=first_ret;
 					for(int irr_counter=0; irr_counter < noi; ++irr_counter)
 					{
 						if(investor_irr_probability[irr_counter] > 0.001)
 						{
-							for(int guilt = 0; guilt < nob; ++guilt) 
+							for(int guilt = 0; guilt < nob; ++guilt)
 							{
-								if(trustee_belief_probability[guilt] > 0.001 ) 
+								if(trustee_belief_probability[guilt] > 0.001 )
 								{
 									if((1.0-local_shifts[k1][irr_counter]) > 0.001 & repay_probability[guilt][first_ret] > 0.001)
 									{
@@ -2513,40 +2516,40 @@ void investor_k(  int const& present_time
 									if(local_shifts[k1][irr_counter] > 0.001 & tru_exp_payoffs[0][first_ret] > 0.001)
 									{
 										i_util[investor_guilt][first_act] += local_shifts[k1][irr_counter]*ui_init_system[investor_guilt](first_act, first_ret)*
-										trustee_belief_probability[guilt]*tru_exp_payoffs[0][first_ret]*investor_irr_probability[irr_counter]; 
+										trustee_belief_probability[guilt]*tru_exp_payoffs[0][first_ret]*investor_irr_probability[irr_counter];
 									}
 								}
-							}	
+							}
 						}
-					}								
+					}
 					beliefs = Trustee_node_r -> get_belief_parameters();
 					irr_beliefs = Trustee_node_r -> get_irr_beliefs();
-					local_shifts = Trustee_node_r -> get_shifts();							
-					investor_holder = Trustee_node_r -> get_child(first_ret);								
+					local_shifts = Trustee_node_r -> get_shifts();
+					investor_holder = Trustee_node_r -> get_child(first_ret);
 					if(!investor_holder)
 					{
 						investor_holder = new True_node();
 						Trustee_node_r -> set_child( first_ret, investor_holder);
 
-						for(int l=0; l < noT; ++l)  
-						{	
+						for(int l=0; l < noT; ++l)
+						{
 							for(int b=0; b < nob; ++b)
-							{		
-								investor_holder -> set_belief_parameters(b, beliefs[l][b], l);				
+							{
+								investor_holder -> set_belief_parameters(b, beliefs[l][b], l);
 							}
 							for(int irr=0; irr < noi; ++irr)
 							{
 								investor_holder -> set_irr_parameters(irr, irr_beliefs[l][irr], l);
-							}					
-						}	
-						for(int level=0; level < noT+1; ++level)  
-						{	
-							for(int irr=0; irr < noi; ++irr)
-							{	
-								investor_holder -> set_shift(level, local_shifts[level][irr], irr);		
 							}
 						}
-						
+						for(int level=0; level < noT+1; ++level)
+						{
+							for(int irr=0; irr < noi; ++irr)
+							{
+								investor_holder -> set_shift(level, local_shifts[level][irr], irr);
+							}
+						}
+
 						if((k1+2)%2== 1)
 						{
 							double sum = 0.0;
@@ -2571,7 +2574,7 @@ void investor_k(  int const& present_time
 							for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 							{
 								running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-							}							
+							}
 							investor_expectation_calculation( 0, &investor_holder, running_belief_probability , running_irr_probability);
 						}
 						else
@@ -2584,17 +2587,17 @@ void investor_k(  int const& present_time
 							{
 								running_irr_probability[guilt_counter] = 0.0;
 							}
-							running_irr_probability[0] = 1.0;					
+							running_irr_probability[0] = 1.0;
 							investor_expectation_calculation( -1, &investor_holder, running_belief_probability , running_irr_probability);
-						}									
+						}
 					}
 					for(int b=0; b < nob; ++b)
 					{
 						if(k1>0)
 						{
-							investor_holder -> set_belief_parameters(b, beliefs[k1-1][b], k1-1);	
+							investor_holder -> set_belief_parameters(b, beliefs[k1-1][b], k1-1);
 						}
-						investor_holder -> set_belief_parameters(b, beliefs[k1][b], k1);	
+						investor_holder -> set_belief_parameters(b, beliefs[k1][b], k1);
 					}
 					for(int irr=0; irr < noi; ++irr)
 					{
@@ -2603,12 +2606,12 @@ void investor_k(  int const& present_time
 							investor_holder-> set_irr_parameters(irr, irr_beliefs[k1-1][irr], k1-1);
 						}
 						investor_holder-> set_irr_parameters(irr, irr_beliefs[k1][irr], k1);
-					}		
+					}
 					for(int irr=0; irr < noi; ++irr)
-					{	
-						investor_holder -> set_shift(k1, local_shifts[k1][irr], irr);	
-						investor_holder -> set_shift(k1+1, local_shifts[k1+1][irr], irr);								
-					}										
+					{
+						investor_holder -> set_shift(k1, local_shifts[k1][irr], irr);
+						investor_holder -> set_shift(k1+1, local_shifts[k1+1][irr], irr);
+					}
 					double trustee_monetary_action = 5.0/6.0*static_cast<double>(rbf*first_ret*first_act);
 					if(!action[game]==0)
 					{
@@ -2618,14 +2621,14 @@ void investor_k(  int const& present_time
 					sum = 0.0;
 					isum = 0.0;
 					beliefs = investor_holder -> get_belief_parameters();
-					irr_beliefs = investor_holder -> get_irr_beliefs();	
+					irr_beliefs = investor_holder -> get_irr_beliefs();
 					if(k1>0)
 					{
 						for(int guilt = 0; guilt < nob; ++guilt)
 						{
 							if(k1 > 1)
 							{
-								guilt_parameter[k1-2]=guilt; 
+								guilt_parameter[k1-2]=guilt;
 							}
 							guilt_parameter[noT]=guilt;
 							if(!(investor_holder ->get_confirm_exploration(guilt, k1-1)))
@@ -2642,10 +2645,10 @@ void investor_k(  int const& present_time
 								, expected_outcome_utility
 								, temperature
 								, mempool
-								, &investor_holder);	
-								investor_holder -> confirm_exploration(guilt, k1-1);								
-							}								
-						}	
+								, &investor_holder);
+								investor_holder -> confirm_exploration(guilt, k1-1);
+							}
+						}
 					}
 
 					if(k1 > 0)
@@ -2667,7 +2670,7 @@ void investor_k(  int const& present_time
 						for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 						{
 							running_irr_probability[guilt_counter] = running_irr_probability[guilt_counter]/isum;
-						}							
+						}
 						investor_expectation_calculation( k1-1, &investor_holder, running_belief_probability , running_irr_probability);
 					}
 					else
@@ -2680,8 +2683,8 @@ void investor_k(  int const& present_time
 						{
 							running_irr_probability[guilt_counter] = 0.0;
 						}
-						running_irr_probability[0] = 1.0;						
-						investor_expectation_calculation( k1-1, &investor_holder, running_belief_probability , running_irr_probability);								
+						running_irr_probability[0] = 1.0;
+						investor_expectation_calculation( k1-1, &investor_holder, running_belief_probability , running_irr_probability);
 					}
 
 					investor_k(  game+1
@@ -2696,17 +2699,17 @@ void investor_k(  int const& present_time
 					, expected_outcome_utility
 					, temperature
 					, mempool
-					, &investor_holder);	
-					investor_holder -> confirm_exploration(investor_guilt, k1+1);								
+					, &investor_holder);
+					investor_holder -> confirm_exploration(investor_guilt, k1+1);
 
 					hold_payoffs = investor_holder-> get_exp_payoffs(k1+1);
 					for(int i_action = 0; i_action < noa; ++i_action)
-					{		
+					{
 						investor_val[i_action] = 0.0;
-					}							
+					}
 
-					for(int second_act = 0; second_act < noa; ++second_act) 
-					{	
+					for(int second_act = 0; second_act < noa; ++second_act)
+					{
 						if(hold_payoffs[investor_guilt][second_act] > 0.0001)
 						{
 							investor_val[second_act] += (investor_holder -> get_payoff(second_act))*
@@ -2714,17 +2717,17 @@ void investor_k(  int const& present_time
 						}
 					}
 					sum =0.0;
-					local_shifts = Trustee_node_r -> get_shifts();	
-					for(int believed_irr=0; believed_irr < noi; ++believed_irr)	
-					{									
-						for(int guilt = 0; guilt < nob; ++guilt) 
-						{	
+					local_shifts = Trustee_node_r -> get_shifts();
+					for(int believed_irr=0; believed_irr < noi; ++believed_irr)
+					{
+						for(int guilt = 0; guilt < nob; ++guilt)
+						{
 							if(trustee_belief_probability[guilt] > 0.001 & repay_probability[guilt][first_ret] > 0.001)
-							{						
+							{
 								for(int second_act = 0; second_act < noa; ++second_act)
 								{
 									if(prob[second_act] > 0.0001 )
-									{			
+									{
 										if((1.0-local_shifts[k1][believed_irr]) > 0.001 && repay_probability[guilt][first_ret]>0.001)
 										{
 											i_util[investor_guilt][first_act] += investor_val[second_act]*trustee_belief_probability[guilt]*investor_irr_probability[believed_irr]*
@@ -2734,8 +2737,8 @@ void investor_k(  int const& present_time
 										{
 											i_util[investor_guilt][first_act] += investor_val[second_act]*trustee_belief_probability[guilt]*investor_irr_probability[believed_irr]*
 											local_shifts[k1][believed_irr]*tru_exp_payoffs[0][first_ret];
-										}												
-									}											
+										}
+									}
 								}
 							}
 						}
@@ -2743,7 +2746,7 @@ void investor_k(  int const& present_time
 
 				}
 				current_node -> set_payoff(first_act, i_util[investor_guilt][first_act]);
-				
+
 			}
 
 			sum = 0.0;
@@ -2751,29 +2754,29 @@ void investor_k(  int const& present_time
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				max_val = (max_val < 1.0/temperature*i_util[investor_guilt][first_act] ? 1.0/temperature*i_util[investor_guilt][first_act]:max_val);
-			}	
+			}
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				if(1.0/temperature*i_util[investor_guilt][first_act]-max_val > -20.0)
 				{
 					sum += exp(1.0/temperature*i_util[investor_guilt][first_act]);
-					
+
 				}
 			}
 			for(int first_act = 0; first_act < noa; ++first_act)
 			{
 				if(1.0/temperature*i_util[investor_guilt][first_act]-max_val > -20.0)
-				{					
+				{
 					i_util[investor_guilt][first_act] = exp(1.0/temperature*i_util[investor_guilt][first_act])/sum;
 				}
 				else
 				{
 					i_util[investor_guilt][first_act] = 0.0;
-				}					
+				}
 				current_node -> set_exp_payoffs(first_act, i_util[investor_guilt][first_act], investor_guilt, k1+1);
-			}				
-		
-		}		
+			}
+
+		}
 
 	}
 
@@ -2781,25 +2784,41 @@ void investor_k(  int const& present_time
 
 
 int main(int argc, char* argv[])
-{			
+{
+
+	// Get the number of subjects and start/end id from command line input
+
+	char *p;
+	static int no_sub = strtol(argv[3], &p, 10);
+	static int start_id = strtol(argv[4], &p, 10);
+	static int end_id = strtol(argv[5], &p, 10);
+
+	printf("Number of subjects: ");
+	cout << no_sub << endl;
+	printf("start id: ");
+	cout << start_id << endl;
+	printf("end id: ");
+	cout << end_id << endl;
+	printf("Running script for %d participants. This should take 2 hours/part\n", end_id - start_id);
+
 	//---------------------------------------- storage variables for choice probabilities ("payoff") and expectations
 	//boost::array<double,noa>  investor_payoff;
-	//boost::array<double,noa>  trustee_payoff;	
+	//boost::array<double,noa>  trustee_payoff;
 	static boost::array<boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noi>, global_time_horizon>, noT>  hold_investor_payoffs;
-	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_investor_payoffs;	
-	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_investor_shifted_payoffs;		
+	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_investor_payoffs;
+	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_investor_shifted_payoffs;
 	static boost::array<boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noi>, global_time_horizon>, noT> WI_investor_payoffs;
 	static boost::array<boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noi>, global_time_horizon>, noT> hold_trustee_payoffs;
-	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_trustee_payoffs;	
-	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_trustee_shifted_payoffs;	
+	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_trustee_payoffs;
+	static boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noT> , global_time_horizon> store_trustee_shifted_payoffs;
 	static boost::array<boost::array<boost::array<boost::array<boost::array<double,noa>,nob>, noi>, global_time_horizon>, noT> WT_trustee_payoffs;
 	static boost::array<boost::array<double,noa>,nob> main_exp_payoffs;
-	static boost::array<boost::array<double,noa>,nob> main_i_exp_payoffs;	
+	static boost::array<boost::array<double,noa>,nob> main_i_exp_payoffs;
 	static boost::array<boost::array<double,noa>,nob> investor_payoffs;
 	static boost::array<boost::array<double,noa>,nob> trustee_payoffs;
 	static boost::array<boost::array<double,noa>,nob> shifted_payoffs;
 	static boost::array<boost::array<double, noT>, global_time_horizon> store_investor_expectation;
-	static boost::array<boost::array<double, noT> , global_time_horizon> store_trustee_expectation;	
+	static boost::array<boost::array<double, noT> , global_time_horizon> store_trustee_expectation;
 	static boost::array<boost::array<double, noT> , global_time_horizon> WI_investor_expectation;
 	static boost::array<boost::array<double, noT> , global_time_horizon> WT_trustee_expectation;
 	//--------------------------------------------------------------------------------------------------------------------------------
@@ -2807,46 +2826,51 @@ int main(int argc, char* argv[])
 	double tsum = 0.0; //sum holder variable  trustee
 
 
-	static int no_sub = 16;
-	static int start_id;
-	static int end_id;
 
 //------------------------------------------------- readout block for prepared behaviour files ------------------------------------------------------------
-	ifstream ifile ("/data/ahula/Park/PDSixteen.bin", ios::in | ios::binary| ios::ate);	//
+	ifstream ifile (argv[1], ios::in | ios::binary| ios::ate);	//
+	cout << "Input file is " << argv[1] << endl;
+
 	ifstream::pos_type il;
 	char * melblock;
     streampos size;
 	size = ifile.tellg();
-	ifile.seekg (0, ios::beg);	
+	ifile.seekg (0, ios::beg);
 	melblock = new char [size];
 
 	ifile.read (melblock, size);
 	ifile.close();
-	il =0;						
-	
+	il =0;
+
 	static boost::array<boost::array<boost::array<int,global_time_horizon>,2>,1000> Subject_Games;	//set-up of subject interaction block
-	
+
 	for(int sub_id=0; sub_id < no_sub; ++sub_id)
 	{
+
+		// cout << "Game for sub (inv,ret interleaved):" << endl;
+		// cout << sub_id << endl;
 		for(int turn=0; turn <global_time_horizon; ++turn)
 		{
-			Subject_Games[sub_id][0][turn]= *(int*)&melblock[il];	
-			il += sizeof *(int*)&melblock[il];			
+			Subject_Games[sub_id][0][turn]= *(int*)&melblock[il];
+			il += sizeof *(int*)&melblock[il];
 			Subject_Games[sub_id][1][turn]=*(int*)&melblock[il];
 			il += sizeof *(int*)&melblock[il];
+			// cout<< Subject_Games[sub_id][0][turn] << endl;
+			// cout<< Subject_Games[sub_id][1][turn] << endl;
 		}
+
 	}
-	
+
 	delete[] melblock;
-//-------------------------------------------------------------------------------------------------------------------	
+//-------------------------------------------------------------------------------------------------------------------
 	double trustee_monetary_response;	//holder for current trustee response in terms of monetary value
 	double investor_monetary_action;  //holder for current investor response in terms of monetary value
 	// ------------------------------------- belief holder variables: Guilt beliefs and Irritability beliefs for both actors ----------------------------
-	static boost::array<boost::array<double, nob>, noT> trustee_belief_parameters;	
+	static boost::array<boost::array<double, nob>, noT> trustee_belief_parameters;
 	static boost::array<boost::array<double, nob>, noT> investor_belief_parameters;
-	static boost::array<boost::array<double, noi>, noT> trustee_irr_beliefs;	
+	static boost::array<boost::array<double, noi>, noT> trustee_irr_beliefs;
 	static boost::array<boost::array<double, noi>, noT> investor_irr_beliefs;
-	
+
 	//----------------------------------- model and output holder variables --------------------------------------
 	static boost::array<boost::array<int,2>,8100> Subject_Guilt; //store subject guilt values (8100 as arbitrary limit)
 	static boost::array<boost::array<int,2>,8100> Subject_ToM;		//store subject guilt values (8100 as arbitrary limit)
@@ -2886,40 +2910,40 @@ int main(int argc, char* argv[])
 	static Matrix_vector investor_utpi_init;
 	static boost::array< Matrix , nob> investor_trustee_probabilities;
 	static boost::array< Matrix , nob> trustee_trustee_probabilities;
-	
+
 	boost::array<int, noT+1> guilt_parameter;
-	static boost::array<Matrix, nob> investor_ui_init_system;	
+	static boost::array<Matrix, nob> investor_ui_init_system;
 	static boost::array<Matrix, nob> investor_ut_init_system;
-	
-	static boost::array<Matrix, nob> trustee_ui_init_system;		
+
+	static boost::array<Matrix, nob> trustee_ui_init_system;
 	static boost::array<Matrix, nob> trustee_ut_init_system;
-	
+
 	static boost::array<boost::array<double, noa>, nob> investor_expected_trustee_payoff;
 	static boost::array<boost::array<boost::array<double, noa>, nob>, nob> investor_expected_outcome_utility;
 	static boost::array<boost::array<double, noa>, nob> trustee_expected_trustee_payoff;
 	static boost::array<boost::array<boost::array<double, noa>, nob>, nob> trustee_expected_outcome_utility;
-	
+
 	static boost::array<int,4> Planning;
 	Planning[0]=1;
 	Planning[1]=2;
-	Planning[2]=3;	
-	Planning[3]=4;		
+	Planning[2]=3;
+	Planning[3]=4;
 	double inv_risk_aversion;
-	double tru_risk_aversion;	
-	
-	static boost::array<boost::array<boost::array<double, nob>, noT>,global_time_horizon> WT_trustee_belief_parameters;	
+	double tru_risk_aversion;
+
+	static boost::array<boost::array<boost::array<double, nob>, noT>,global_time_horizon> WT_trustee_belief_parameters;
 	static boost::array<boost::array<boost::array<double, nob>, noT>,global_time_horizon> WI_investor_belief_parameters;
-	static boost::array<boost::array<boost::array<double, noi>, noT>,global_time_horizon> WT_irr_beliefs;	
+	static boost::array<boost::array<boost::array<double, noi>, noT>,global_time_horizon> WT_irr_beliefs;
 	static boost::array<boost::array<boost::array<double, noi>, noT>,global_time_horizon> WI_irr_beliefs;
-	static boost::array<boost::array<boost::array<double, noi>, noT>,global_time_horizon> store_investor_irr_beliefs;	
+	static boost::array<boost::array<boost::array<double, noi>, noT>,global_time_horizon> store_investor_irr_beliefs;
 	static boost::array<boost::array<boost::array<double, noi>, noT>,global_time_horizon> store_trustee_irr_beliefs;
 
-	
+
 	static boost::array<double, 8> risk_grid;
 	risk_grid[0] = 0.4;
-	risk_grid[1] = 0.6;	
+	risk_grid[1] = 0.6;
 	risk_grid[2] = 0.8;
-	risk_grid[3] = 1.0;	
+	risk_grid[3] = 1.0;
 	risk_grid[4] = 1.2;
 	risk_grid[5] = 1.4;
 	risk_grid[6] = 1.6;
@@ -2930,41 +2954,41 @@ int main(int argc, char* argv[])
 	irr_belief_presets[0][1] = 0.1;
 	irr_belief_presets[0][2] = 0.1;
 	irr_belief_presets[0][3] = 0.1;
-	irr_belief_presets[0][4] = 0.1;	
+	irr_belief_presets[0][4] = 0.1;
 	irr_belief_presets[1][0] = 4.0;
 	irr_belief_presets[1][1] = 0.5;
 	irr_belief_presets[1][2] = 0.5;
 	irr_belief_presets[1][3] = 0.5;
-	irr_belief_presets[1][4] = 0.5;	
+	irr_belief_presets[1][4] = 0.5;
 	irr_belief_presets[2][0] = 0.4;
 	irr_belief_presets[2][1] = 0.1;
 	irr_belief_presets[2][2] = 0.1;
 	irr_belief_presets[2][3] = 0.1;
-	irr_belief_presets[2][4] = 0.1;	
+	irr_belief_presets[2][4] = 0.1;
 	irr_belief_presets[3][0] = 2.0;
 	irr_belief_presets[3][1] = 1.0;
 	irr_belief_presets[3][2] = 1.0;
 	irr_belief_presets[3][3] = 1.0;
-	irr_belief_presets[3][4] = 1.0;	
+	irr_belief_presets[3][4] = 1.0;
 	irr_belief_presets[4][0] = 0.1;
 	irr_belief_presets[4][1] = 0.1;
 	irr_belief_presets[4][2] = 0.1;
 	irr_belief_presets[4][3] = 0.1;
-	irr_belief_presets[4][4] = 400.1;	
+	irr_belief_presets[4][4] = 400.1;
 	static boost::array<double, 4> temperature_grid;
 	temperature_grid[0]= 4.0;
 	temperature_grid[1]= 3.0;
 	temperature_grid[2]= 2.0;
-	temperature_grid[3]= 1.0;		
-	
+	temperature_grid[3]= 1.0;
+
 	static boost::array<boost::array<double, noi>, noT+1> investor_shifts;
 	static boost::array<boost::array<double, noi>, noT+1> trustee_shifts;
 	static boost::array<boost::array<boost::array<double, noi>, noT+1>, global_time_horizon> store_investor_shifts;
-	static boost::array<boost::array<boost::array<double, noi>, noT+1>, global_time_horizon> store_trustee_shifts;	
+	static boost::array<boost::array<boost::array<double, noi>, noT+1>, global_time_horizon> store_trustee_shifts;
 	static boost::array<boost::array<boost::array<double, noi>, noT+1>, global_time_horizon> WI_investor_shifts;
-	static boost::array<boost::array<boost::array<double, noi>, noT+1>, global_time_horizon> WT_trustee_shifts;		
+	static boost::array<boost::array<boost::array<double, noi>, noT+1>, global_time_horizon> WT_trustee_shifts;
 	static boost::array<double, nob>  main_running_belief_probability;
-	static boost::array<double, noi>  main_irr_probability;		
+	static boost::array<double, noi>  main_irr_probability;
 
 	True_node* Trust;
 	True_node* temp_node;
@@ -2976,15 +3000,17 @@ int main(int argc, char* argv[])
 
 	/*int investor_irr = 0;	//generative model mode holders for irritation settings
 	int trustee_irr = 0;*/
-	MEMORY_POOL<True_node> mexpool;	
-	ofstream ofs("/data/ahula/Park/PDFlex16.bin", ofstream::out| ofstream::binary);			//output stream
-	start_id= 15;
-	end_id = 16;
+	MEMORY_POOL<True_node> mexpool;
+	// static str fname
+	// fname = strcat("output_startid", argv[1], "")
+	ofstream ofs(argv[2], ofstream::out| ofstream::binary);			//output stream
+	cout << "Output file is " << argv[2] << endl;
 	True_node* investor_node;	//pointer to current investor node
 	True_node* trustee_node;	//pointer to current trustee node
 	int countr = 0;
 	static int investor_choice_holder = 0;
 	static int trustee_choice_holder = 0;
+	static Matrix_vector trustee_utpi_init;
 	//adapt belief updates from above
 	inv_risk_aversion = 1.0;
 	investor_temperature =  2.0;
@@ -3000,8 +3026,8 @@ int main(int argc, char* argv[])
 		investor_trustee_probabilities[system]=initialize_trustee_probabilities(investor_ut_init_system[system], investor_temperature);
 	}
 	investor_expected_trustee_payoff  = initialize_expected_trustee_payoff(investor_trustee_probabilities, investor_ut_init_system);
-	investor_expected_outcome_utility = initialize_expected_outcome_utility(investor_trustee_probabilities, investor_ui_init_system);	
-	
+	investor_expected_outcome_utility = initialize_expected_outcome_utility(investor_trustee_probabilities, investor_ui_init_system);
+
 	for(int sub_id= start_id; sub_id < end_id; ++sub_id)
 	{
 		Subject_ToM[sub_id][0]=4;
@@ -3009,16 +3035,24 @@ int main(int argc, char* argv[])
 
 		Tlike_max = 1000;
 		Ilike_max = 1000;
-		cout << sub_id <<endl; //to track progress
-	
-		for(int risk_count= 0; risk_count < 8; ++risk_count) 
+		cout << "Processing part: ";
+		cout << sub_id << endl; //to track progress
+		cout << "The game is: " << endl;
+		for(int turn=0; turn <global_time_horizon; ++turn)
+		{
+			cout << Subject_Games[sub_id][0][turn] << endl;
+			cout << Subject_Games[sub_id][1][turn] << endl;
+		}
+
+
+		for(int risk_count= 0; risk_count < 8; ++risk_count)
 		{
 
 			inv_risk_aversion = risk_grid[risk_count];
 			tru_risk_aversion = risk_grid[risk_count];
-					
-			for(int temp_count=0; temp_count < 4; ++temp_count) 
-			{				
+
+			for(int temp_count=0; temp_count < 4; ++temp_count)
+			{
 				investor_temperature =  temperature_grid[temp_count];
 				trustee_temperature = temperature_grid[temp_count];
 				if(inv_risk_aversion < 1.2)
@@ -3054,37 +3088,37 @@ int main(int argc, char* argv[])
 						, investor_temperature
 						, mexpool
 						, &Irritation_Investor);
-					}	
+					}
 					inv_risk_aversion = risk_grid[risk_count];
-				}				
+				}
 				investor_utpi_init = initialize_utpi_init(1.0);
 
-						
+
 				for(int system=0; system < nob; ++system)
-				{ 
+				{
 					investor_ui_init_system[system] = initialize_ui_init(system, inv_risk_aversion);
-				}	
-			
+				}
+
 				for(int system=0; system < nob; ++system)
 				{
 					investor_ut_init_system[system] = initialize_trustee_utility(system, 1.0);
-					investor_trustee_probabilities[system]=initialize_trustee_probabilities(investor_ut_init_system[system], investor_temperature);		
-				}		
+					investor_trustee_probabilities[system]=initialize_trustee_probabilities(investor_ut_init_system[system], investor_temperature);
+				}
 				investor_expected_trustee_payoff  = initialize_expected_trustee_payoff(investor_trustee_probabilities, investor_ut_init_system);
 				investor_expected_outcome_utility = initialize_expected_outcome_utility(investor_trustee_probabilities, investor_ui_init_system);
-				
-				trustee_utpi_init = initialize_utpi_init(1.0);				
+
+				trustee_utpi_init = initialize_utpi_init(1.0);
 				for(int system=0; system < nob; ++system)
-				{ 
+				{
 					trustee_ui_init_system[system] = initialize_ui_init(system, tru_risk_aversion);
-				}				
+				}
 				for(int system=0; system < nob; ++system)
 				{
 					trustee_ut_init_system[system] = initialize_trustee_utility(system, 1.0);
-					trustee_trustee_probabilities[system] =initialize_trustee_probabilities(trustee_ut_init_system[system], trustee_temperature);		
-				}				
+					trustee_trustee_probabilities[system] =initialize_trustee_probabilities(trustee_ut_init_system[system], trustee_temperature);
+				}
 				trustee_expected_trustee_payoff  = initialize_expected_trustee_payoff(trustee_trustee_probabilities, trustee_ut_init_system);
-				trustee_expected_outcome_utility = initialize_expected_outcome_utility(trustee_trustee_probabilities, trustee_ui_init_system);							
+				trustee_expected_outcome_utility = initialize_expected_outcome_utility(trustee_trustee_probabilities, trustee_ui_init_system);
 
 				if(inv_risk_aversion > 1.0)
 				{
@@ -3105,16 +3139,16 @@ int main(int argc, char* argv[])
 						, investor_temperature
 						, mexpool
 						, &Irritation_Investor);
-					}							
-				}				
-				for(int plan_count=0; plan_count < 4; ++plan_count) 
-				{					
+					}
+				}
+				for(int plan_count=0; plan_count < 4; ++plan_count)
+				{
 					d1 =Planning[plan_count]; //get current planning var
 					d2 =Planning[plan_count];
 					for(int irr_belief=0; irr_belief < 5; ++irr_belief)
 					{
 
-						for(int level=0; level < noT; ++level)  
+						for(int level=0; level < noT; ++level)
 						{
 							for(int irr=0; irr < noi; ++irr)
 							{
@@ -3123,46 +3157,46 @@ int main(int argc, char* argv[])
 							for(int belief=0; belief < nob; ++belief)
 							{
 								investor_belief_parameters[level][belief] = 1.0;// set initial guilt beliefs
-								
+
 								for(int time_step=0; time_step < global_time_horizon; ++time_step)//initialize storage array
-								{							
+								{
 									store_investor_belief_parameters[time_step][level][belief]=investor_belief_parameters[level][belief];
 									store_investor_expectation[time_step][level] = 0.0;
 								}
 							}
 						}
-						
-						for(int level=0; level < noT; ++level)  
+
+						for(int level=0; level < noT; ++level)
 						{
 							for(int irr=0; irr < noi; ++irr)
 							{
 								trustee_irr_beliefs[level][irr] = 0.1; //set default irritation beliefs, in case
-							}			
+							}
 							for(int belief=0; belief < nob; ++belief)
 							{
 								trustee_belief_parameters[level][belief] = 1.0;	// set initial guilt beliefs
 								for(int time_step=0; time_step < global_time_horizon; ++time_step)	//initialize storage array
-								{							
-									store_trustee_belief_parameters[time_step][level][belief]=trustee_belief_parameters[level][belief];	
+								{
+									store_trustee_belief_parameters[time_step][level][belief]=trustee_belief_parameters[level][belief];
 									store_trustee_expectation[time_step][level]=0.0;
 								}
 							}
-						}	
+						}
 						for(int irr =0; irr < noi; ++irr)
 						{
 							for(int shift_reset =0; shift_reset < noT+1; ++shift_reset)
 							{
 								investor_shifts[shift_reset][irr]= 0.0; //assume no one starts the game irritated
-								trustee_shifts[shift_reset][irr] = 0.0;		
-							}	
+								trustee_shifts[shift_reset][irr] = 0.0;
+							}
 						}
 
 						for(int level = 0; level < noT; ++level)
-						{						
+						{
 							for(int irr =0; irr < noi; ++irr)
 							{
 								investor_irr_beliefs[level][irr] = irr_belief_presets[irr_belief][irr]; //use a preset prior according to irritation belief settings
-								trustee_irr_beliefs[level][irr] = irr_belief_presets[irr_belief][irr];				
+								trustee_irr_beliefs[level][irr] = irr_belief_presets[irr_belief][irr];
 							}
 						}
 
@@ -3177,50 +3211,50 @@ int main(int argc, char* argv[])
 								}
 							}
 						}
-									
+
 						for(int time_step=0; time_step < global_time_horizon; ++time_step)	//global_time_horizon
 						{
 							MEMORY_POOL<True_node> mempool; //start local mempool
 							investor_planning = mini(time_step+d1+1, global_time_horizon);	//determine local planning horizon
-							trustee_planning= mini(time_step+d2+1, global_time_horizon);			
+							trustee_planning= mini(time_step+d2+1, global_time_horizon);
 							investor_node = new True_node(); //stays at root. Symbolizes investor at beginning of round
 							trustee_node = new True_node(); //stays at root.  Symbolizes trustee at beginning of round
 
 							for(int level=0; level < noT; ++level)  //initialize priors on guilt beliefs on the new nodes
-							{	
+							{
 								for(int belief=0; belief < nob; ++belief)
-								{		
+								{
 									investor_node-> set_belief_parameters(belief, investor_belief_parameters[level][belief], level);
-									trustee_node-> set_belief_parameters(belief, trustee_belief_parameters[level][belief], level);					
-								}	
-							}	
-										
+									trustee_node-> set_belief_parameters(belief, trustee_belief_parameters[level][belief], level);
+								}
+							}
+
 							for(int level=0; level < noT; ++level)  //initialize priors on irritation beliefs on the new nodes
-							{	
+							{
 								for(int irr=0; irr < noi; ++irr)
-								{	
+								{
 									investor_node-> set_irr_parameters(irr, investor_irr_beliefs[level][irr], level);
 									store_investor_irr_beliefs[time_step][level][irr] = investor_irr_beliefs[level][irr];
-									trustee_node-> set_irr_parameters(irr, trustee_irr_beliefs[level][irr], level);	
-									store_trustee_irr_beliefs[time_step][level][irr] = trustee_irr_beliefs[level][irr];									
-								}	
+									trustee_node-> set_irr_parameters(irr, trustee_irr_beliefs[level][irr], level);
+									store_trustee_irr_beliefs[time_step][level][irr] = trustee_irr_beliefs[level][irr];
+								}
 							}
 
 							//set irritation shifts on the new nodes
-							for(int level=0; level < noT+1; ++level)  
-							{	
+							for(int level=0; level < noT+1; ++level)
+							{
 								for(int irr=0; irr < noi; ++irr)
-								{	
+								{
 									investor_node -> set_shift(level, investor_shifts[level][irr], irr);
 									store_investor_shifts[time_step][level][irr] = investor_shifts[level][irr];
-									trustee_node -> set_shift(level, trustee_shifts[level][irr], irr);	
+									trustee_node -> set_shift(level, trustee_shifts[level][irr], irr);
 									store_trustee_shifts[time_step][level][irr] = trustee_shifts[level][irr];
 								}
 							}
 							//------------------------ Level -1 set-up block --------------------------------------
 							for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
 							{
-								//trustee model of level -1 investor choice probabilities for all investor guilt types 
+								//trustee model of level -1 investor choice probabilities for all investor guilt types
 								guilt_parameter[noT]=guilt_counter;
 								investor_k( time_step
 								, trustee_planning
@@ -3234,8 +3268,8 @@ int main(int argc, char* argv[])
 								, trustee_expected_outcome_utility
 								, trustee_temperature
 								, mempool
-								, &trustee_node);		
-								//investor model of level -1 investor choice probabilities for all investor guilt types 
+								, &trustee_node);
+								//investor model of level -1 investor choice probabilities for all investor guilt types
 								guilt_parameter[noT]=guilt_counter;
 								investor_k(  time_step
 								, investor_planning
@@ -3278,11 +3312,11 @@ int main(int argc, char* argv[])
 									for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 									{
 										main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-									}				
+									}
 									//calculate the expected value of the investor action from the point of view of a level 0 trustee
 									investor_expectation_calculation( 0, &trustee_node, main_running_belief_probability , main_irr_probability);
 
-								}		
+								}
 								else
 								{
 									//if level -1 investor is not part of the ToM hierarchy (for instancen for a level 1 trustee)
@@ -3290,21 +3324,21 @@ int main(int argc, char* argv[])
 									for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
 									{	//all guilt states are equally likely
 										main_running_belief_probability[guilt_counter] = 1.0/static_cast<double>(nob);
-									}	
+									}
 									for(int irr_counter=0; irr_counter < noi; ++irr_counter)
 									{	//partner is not modelled as irritable
 										main_irr_probability[irr_counter] = 0.0;
-									}	
+									}
 									main_irr_probability[0]= 1.0;
 									//calculate the expected value of the investor action from the point of view of a level -1 trustee
-									investor_expectation_calculation( -1, &trustee_node,  main_running_belief_probability , main_irr_probability);				
-								}	
-							}				
+									investor_expectation_calculation( -1, &trustee_node,  main_running_belief_probability , main_irr_probability);
+								}
+							}
 							if(!investor_node-> expectation_set(0))
-							{			
+							{
 								//investor model of trustee expectation of investor action
 								if((Subject_ToM[sub_id][0]+3)%2== 0)
-								{ 		
+								{
 									//if investor of level -1 is part of the ToM hierarchy (for instance level 1 investor -> less common hierarchy)
 									double sum = 0.0;
 									double isum = 0.0;
@@ -3327,24 +3361,24 @@ int main(int argc, char* argv[])
 									for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 									{
 										main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-									}							
-									investor_expectation_calculation( 0, &investor_node, main_running_belief_probability , main_irr_probability);			
-								}		
+									}
+									investor_expectation_calculation( 0, &investor_node, main_running_belief_probability , main_irr_probability);
+								}
 								else
 								{
 									//if investor of level -1 is not part of the ToM hierarchy (for instance level 0 or level 2 investor -> common hierarchy)
 									for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
 									{
 										main_running_belief_probability[guilt_counter] = 1.0/static_cast<double>(nob);
-									}	
+									}
 									for(int irr_counter=0; irr_counter < noi; ++irr_counter)
 									{
 										main_irr_probability[irr_counter] = 0.0;
-									}	
+									}
 									main_irr_probability[0]= 1.0;
-									investor_expectation_calculation( -1, &investor_node,  main_running_belief_probability , main_irr_probability);						
-								}							
-							}	
+									investor_expectation_calculation( -1, &investor_node,  main_running_belief_probability , main_irr_probability);
+								}
+							}
 							//-------------------- sub-block level -1 trustee
 							for(int first_action = 0; first_action < noa; ++first_action)	//explore all initial investor actions
 							{
@@ -3353,51 +3387,51 @@ int main(int argc, char* argv[])
 								//---------------------------- investor ----------------------------------------------
 								Trust = new True_node();	//set child node for this action history
 								investor_belief_parameters = investor_node -> get_belief_parameters();	//initialize all guilt beliefs in new node
-								for(int level=0; level < noT; ++level)  
-								{	
+								for(int level=0; level < noT; ++level)
+								{
 									for(int belief=0; belief < nob; ++belief)
-									{		
-										Trust-> set_belief_parameters(belief, investor_belief_parameters[level][belief], level);					
-									}		
-								}		
+									{
+										Trust-> set_belief_parameters(belief, investor_belief_parameters[level][belief], level);
+									}
+								}
 								investor_irr_beliefs = investor_node -> get_irr_beliefs(); //initialize all irritation beliefs in new node
-								for(int level=0; level < noT; ++level)  
-								{	
+								for(int level=0; level < noT; ++level)
+								{
 									for(int irr=0; irr < noi; ++irr)
-									{	
-										Trust-> set_irr_parameters(irr, investor_irr_beliefs[level][irr], level);				
-									}	
-								}	
+									{
+										Trust-> set_irr_parameters(irr, investor_irr_beliefs[level][irr], level);
+									}
+								}
 								investor_shifts = investor_node -> get_shifts(); //initialize all irritation shifts in new node
-								for(int level=0; level < noT+1; ++level)  
-								{	
+								for(int level=0; level < noT+1; ++level)
+								{
 									for(int irr=0; irr < noi; ++irr)
-									{	
+									{
 										Trust -> set_shift(level, investor_shifts[level][irr], irr);
 									}
-								}	
+								}
 								if((Subject_ToM[sub_id][0]+3)%2== 1)
 								{	//if level -1 not part of hierarchy -> no belief update (but still shift update)
 									shift_updates(&investor_node, &Trust, 0, investor_monetary_action);
 									investor_shifts = Trust -> get_shifts();
 									for(int irr=0; irr < noi; ++irr)
-									{										
+									{
 										store_investor_shifts[time_step][0][irr] = investor_shifts[0][irr];
 									}
-								}	
+								}
 								if((Subject_ToM[sub_id][0]+3)%2== 0)
 								{	//if level -1 not part of hierarchy -> all updates (i.e. a level 0 is doing inferenc on them)
 									belief_updates(&investor_node, &Trust, 1, investor_monetary_action , first_action, true);
 									shift_updates(&investor_node, &Trust, 1, investor_monetary_action);
 									investor_shifts = Trust -> get_shifts();
 									for(int irr=0; irr < noi; ++irr)
-									{										
+									{
 										store_investor_shifts[time_step][1][irr] = investor_shifts[1][irr];
 									}
-								}					
+								}
 								investor_node->set_child(first_action, Trust);	//connect child node to tree
 								for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
-								{	
+								{
 									//calculate action values for trustee simulated by investor (all possible trustees)
 									guilt_parameter[noT]=guilt_counter;
 									trustee_k(first_action
@@ -3413,12 +3447,12 @@ int main(int argc, char* argv[])
 									, investor_expected_outcome_utility
 									, investor_temperature
 									, mempool
-									, &Trust);		
-								}	
+									, &Trust);
+								}
 								if(!Trust-> expectation_set(0))	//determine expectation analogous to investor case
-								{			
+								{
 									if((Subject_ToM[sub_id][0]+3)%2== 1)
-									{ 		
+									{
 										double sum = 0.0;
 										double isum = 0.0;
 										investor_belief_parameters = Trust -> get_belief_parameters();
@@ -3440,80 +3474,80 @@ int main(int argc, char* argv[])
 										for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 										{
 											main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-										}							
-										trustee_expectation_calculation( 0, &Trust,  main_running_belief_probability , main_irr_probability, first_action);			
-									}		
+										}
+										trustee_expectation_calculation( 0, &Trust,  main_running_belief_probability , main_irr_probability, first_action);
+									}
 									else
 									{
-								
+
 										for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
 										{
 											main_running_belief_probability[guilt_counter] = 1.0/static_cast<double>(nob);
-										}	
+										}
 										for(int irr_counter=0; irr_counter < noi; ++irr_counter)
 										{
 											main_irr_probability[irr_counter] = 0.0;
-										}	
-										main_irr_probability[0]= 1.0;	
-										trustee_expectation_calculation( -1, &Trust,  main_running_belief_probability , main_irr_probability, first_action);					
-									}	
-								}	
+										}
+										main_irr_probability[0]= 1.0;
+										trustee_expectation_calculation( -1, &Trust,  main_running_belief_probability , main_irr_probability, first_action);
+									}
+								}
 								//------------------------------ trustee -------------------------------
 								Trust = new True_node();	//do the same as above for the trustee point of view
 								trustee_irr_beliefs = trustee_node -> get_irr_beliefs();
-								for(int level=0; level < noT; ++level)  
-								{	
+								for(int level=0; level < noT; ++level)
+								{
 									for(int irr=0; irr < noi; ++irr)
-									{	
-										Trust-> set_irr_parameters(irr, trustee_irr_beliefs[level][irr], level);				
-									}	
-								}						
-								trustee_node->set_child(first_action, Trust);	
+									{
+										Trust-> set_irr_parameters(irr, trustee_irr_beliefs[level][irr], level);
+									}
+								}
+								trustee_node->set_child(first_action, Trust);
 								trustee_belief_parameters = trustee_node-> get_belief_parameters();
-								for(int level=0; level < noT; ++level)  
-								{	
+								for(int level=0; level < noT; ++level)
+								{
 									for(int belief=0; belief < nob; ++belief)
-									{		
-										Trust-> set_belief_parameters(belief, trustee_belief_parameters[level][belief], level);					
-									}		
+									{
+										Trust-> set_belief_parameters(belief, trustee_belief_parameters[level][belief], level);
+									}
 								}
 								trustee_shifts = trustee_node -> get_shifts();
-								for(int level=0; level < noT+1; ++level)  
-								{	
+								for(int level=0; level < noT+1; ++level)
+								{
 									for(int irr=0; irr < noi; ++irr)
-									{	
+									{
 										Trust -> set_shift(level, trustee_shifts[level][irr], irr);
 									}
-								}				
+								}
 								trustee_node->set_child(first_action, Trust);
 								if((Subject_ToM[sub_id][1]+3)%2== 0 )
 								{
 									shift_updates(&trustee_node, &Trust, 0, investor_monetary_action);
 									trustee_shifts = Trust -> get_shifts();
 									for(int irr=0; irr < noi; ++irr)
-									{										
+									{
 										store_trustee_shifts[time_step][0][irr] = trustee_shifts[0][irr];
-									}									
-								}			
+									}
+								}
 								if((Subject_ToM[sub_id][1]+3)%2== 1 )
 								{
 									belief_updates(&trustee_node, &Trust, 1, investor_monetary_action, first_action, true);
 									shift_updates(&trustee_node, &Trust, 1, investor_monetary_action);
 									trustee_shifts = Trust -> get_shifts();
 									for(int irr=0; irr < noi; ++irr)
-									{										
+									{
 										store_trustee_shifts[time_step][1][irr] = trustee_shifts[1][irr];
-									}									
-								}							
+									}
+								}
 								for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
-								{			
+								{
 									guilt_parameter[noT]=guilt_counter;
 									trustee_k(first_action
 									, time_step
 									, trustee_planning
 									, guilt_parameter
 									, -1
-									//, trustee_belief_parameters 
+									//, trustee_belief_parameters
 									, hold_actions
 									, hold_responses
 									, trustee_ui_init_system
@@ -3522,11 +3556,11 @@ int main(int argc, char* argv[])
 									, trustee_expected_outcome_utility
 									, trustee_temperature
 									, mempool
-									, &Trust);	
-							
+									, &Trust);
+
 								}
 								if(!Trust-> expectation_set(0))
-								{			
+								{
 									if((Subject_ToM[sub_id][1]+3)%2== 0)
 									{ 		//determine probabilites from Dirichlet-Multinomial priors
 										double sum = 0.0;
@@ -3550,45 +3584,45 @@ int main(int argc, char* argv[])
 										for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 										{
 											main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-										}	
+										}
 										//Calculate expectation
-										trustee_expectation_calculation( 0, &Trust,  main_running_belief_probability , main_irr_probability, first_action);	
-										store_trustee_expectation[time_step][0] = trustee_node ->get_expectation(0);										
-									}		
+										trustee_expectation_calculation( 0, &Trust,  main_running_belief_probability , main_irr_probability, first_action);
+										store_trustee_expectation[time_step][0] = trustee_node ->get_expectation(0);
+									}
 									else
 									{
 										//level -1 has uniform probabilites
 										for(int guilt_counter=0; guilt_counter < nob; ++guilt_counter)
 										{
 											main_running_belief_probability[guilt_counter] = 1.0/static_cast<double>(nob);
-										}	
+										}
 										for(int irr_counter=0; irr_counter < noi; ++irr_counter)
 										{
 											main_irr_probability[irr_counter] = 0.0;
-										}	
+										}
 										main_irr_probability[0]= 1.0;
 										trustee_expectation_calculation( -1, &Trust,  main_running_belief_probability , main_irr_probability, first_action);
 										store_trustee_expectation[time_step][0] = trustee_node ->get_expectation(0);
 									}
-								}					
-							}			
+								}
+							}
 							//-------------------------------------------- End Level -1 set-up ----------------------------------
-							//-------------------------------------------- Investor Choice Begin --------------------------------		
+							//-------------------------------------------- Investor Choice Begin --------------------------------
 							for(int level = 1; level <= Subject_ToM[sub_id][0]+1 ; ++level) //all initial investor considerations
 							{
 								if((Subject_ToM[sub_id][0]+3-level)%2== 0)
-								{ 		
-									for(int belief=0; belief < nob ; ++belief) 
-									{	
+								{
+									for(int belief=0; belief < nob ; ++belief)
+									{
 										//calculate investor choice probability if not already calculated
 										if( !(investor_node-> get_confirm_exploration(belief, level)) )
-										{				
-											guilt_parameter[level-1]=belief; 
+										{
+											guilt_parameter[level-1]=belief;
 											investor_k( time_step
 											, investor_planning
 											, guilt_parameter
 											, level-1
-											//, investor_belief_parameters 
+											//, investor_belief_parameters
 											, Subject_Games[sub_id][0]
 											, Subject_Games[sub_id][1]
 											, investor_ui_init_system
@@ -3599,14 +3633,14 @@ int main(int argc, char* argv[])
 											, mempool
 											, &investor_node);
 										}
-										
-									
+
+
 									}
 									//calculate expectation of investor action, if not already calculated
 									if(level <(Subject_ToM[sub_id][0]+1))
 									{
 										if(!investor_node -> expectation_set(level))
-										{	
+										{
 											double sum = 0.0;
 											double isum = 0.0;
 											investor_belief_parameters = investor_node -> get_belief_parameters();
@@ -3628,39 +3662,39 @@ int main(int argc, char* argv[])
 											for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 											{
 												main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-											}							
+											}
 											investor_expectation_calculation( level, &investor_node,  main_running_belief_probability , main_irr_probability);
 										}
-										store_investor_expectation[time_step][level] = investor_node->get_expectation(level);									
+										store_investor_expectation[time_step][level] = investor_node->get_expectation(level);
 									}
-										
+
 								}
-								
+
 							}
-										
+
 							for(int level = 0; level <= Subject_ToM[sub_id][0]; ++level)
 							{
 								if((Subject_ToM[sub_id][0]+level+2)%2== 0)
 								{
 									//extract all relevant choice probabilities. Irritated and nonirritated
 									//stoe them for later likelihood calculation
-									main_exp_payoffs = investor_node->get_exp_payoffs(level+1);	
+									main_exp_payoffs = investor_node->get_exp_payoffs(level+1);
 									store_investor_payoffs[time_step][level] = main_exp_payoffs;
 									main_i_exp_payoffs = Irritation_Investor ->get_exp_payoffs(0);
 									store_investor_shifted_payoffs[time_step][level] = main_i_exp_payoffs;
 								}
 							}
-	
-							for(int level = 1; level <= Subject_ToM[sub_id][1]+1 ; ++level) 
+
+							for(int level = 1; level <= Subject_ToM[sub_id][1]+1 ; ++level)
 							{
 								if((Subject_ToM[sub_id][1]+3-level)%2== 1)
-								{ 				
-									for(int belief=0; belief < nob ; ++belief) 
+								{
+									for(int belief=0; belief < nob ; ++belief)
 									{
 										//calculate trustee model of investor choice probabilities
 										if(!(trustee_node-> get_confirm_exploration(belief, level)))
-										{				
-											guilt_parameter[level-1]=belief; 
+										{
+											guilt_parameter[level-1]=belief;
 											investor_k( time_step
 											, trustee_planning
 											, guilt_parameter
@@ -3674,16 +3708,16 @@ int main(int argc, char* argv[])
 											, trustee_temperature
 											, mempool
 											, &trustee_node);
-										
+
 										}
-										
+
 
 									}
 									// set expectation of investor action, if not already set
 									if(level <(Subject_ToM[sub_id][1]+1))
-									{					
+									{
 										if(!trustee_node -> expectation_set(level))
-										{	
+										{
 											double sum = 0.0;
 											double isum = 0.0;
 											trustee_belief_parameters = trustee_node -> get_belief_parameters();
@@ -3705,29 +3739,29 @@ int main(int argc, char* argv[])
 											for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 											{
 												main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-											}							
+											}
 											investor_expectation_calculation( level, &trustee_node,  main_running_belief_probability , main_irr_probability);
-										}	
+										}
 									}
 									store_trustee_expectation[time_step][level] = trustee_node ->get_expectation(level);
 								}
 
-								
+
 							}
 							// build actual choice probability from mixture of irritated and non-irritated choice
 							for(int level = 0; level < Subject_ToM[sub_id][0]+1; ++level)
 							{
 								if((Subject_ToM[sub_id][0]+level+2)%2== 0)
-								{	
+								{
 									investor_payoffs = store_investor_payoffs[time_step][level];
 									shifted_payoffs = store_investor_shifted_payoffs[time_step][level];
-									investor_shifts = investor_node -> get_shifts();																
+									investor_shifts = investor_node -> get_shifts();
 									for(int bel=0; bel < nob; ++bel)
-									{	
+									{
 										for(int irr =0; irr < noi; ++irr)
-										{	
+										{
 											for(int p_act =0; p_act < noa; ++p_act)
-											{										
+											{
 												if((1.0-investor_shifts[level+1][irr]) > 0.001 & investor_payoffs[bel][p_act]>0.0001)
 												{
 													hold_investor_payoffs[level][time_step][irr][bel][p_act] = (1.0-investor_shifts[level+1][irr])*(
@@ -3751,55 +3785,55 @@ int main(int argc, char* argv[])
 											else
 											{
 												like[irr][level][bel] += 1000.0;
-											}											
+											}
 										}
 									}
 								}
 							}
 							//---------------------------------------- Generative Block ----------------------------------------------
 							//Subject_Games[sub_id][0][time_step] = softmax( hold_investor_payoffs[Subject_ToM[sub_id][0]][time_step][investor_irr][Subject_Guilt[sub_id][0]], 201202);
-							//ofs.write( reinterpret_cast<char*>( &Subject_Games[sub_id][0][time_step] ), sizeof Subject_Games[sub_id][0][time_step]);	
+							//ofs.write( reinterpret_cast<char*>( &Subject_Games[sub_id][0][time_step] ), sizeof Subject_Games[sub_id][0][time_step]);
 							//--------------------------------------------------------------------------------------------------------
-							double investor_monetary_action = 5.0*static_cast<double>(Subject_Games[sub_id][0][time_step]);		
+							double investor_monetary_action = 5.0*static_cast<double>(Subject_Games[sub_id][0][time_step]);
 
-							
+
 							temp_node = trustee_node->get_child(Subject_Games[sub_id][0][time_step]);	//move to next history node, according to investor action
-							//-------------------------- Trustee Choice calculation block -------------------------------------------------------------------	
-							for(int level =1; level <= Subject_ToM[sub_id][1]+1 ; ++level) 
+							//-------------------------- Trustee Choice calculation block -------------------------------------------------------------------
+							for(int level =1; level <= Subject_ToM[sub_id][1]+1 ; ++level)
 							{
 								trustee_belief_parameters = trustee_node -> get_belief_parameters();
 								trustee_irr_beliefs = trustee_node -> get_irr_beliefs();
 								trustee_shifts = trustee_node -> get_shifts();
 								for(int b=0; b < nob; ++b)
-								{		
-									temp_node-> set_belief_parameters(b, trustee_belief_parameters[level-1][b], level-1);				
+								{
+									temp_node-> set_belief_parameters(b, trustee_belief_parameters[level-1][b], level-1);
 								}
 								for(int irr=0; irr < noi; ++irr)
 								{
 									temp_node-> set_irr_parameters(irr, trustee_irr_beliefs[level-1][irr], level-1);
-								}					
+								}
 
 								for(int irr=0; irr < noi; ++irr)
-								{	
-									temp_node -> set_shift(level, trustee_shifts[level][irr], irr);		
-								}					
+								{
+									temp_node -> set_shift(level, trustee_shifts[level][irr], irr);
+								}
 								if((Subject_ToM[sub_id][1]+3-level)%2== 0)
-								{ 
+								{
 									//belief updating on investor action
 									belief_updates(&trustee_node, &temp_node, level, investor_monetary_action, Subject_Games[sub_id][0][time_step], true);
 									//possible irritation on investor action
 									shift_updates(&trustee_node, &temp_node, level, investor_monetary_action);
 									trustee_shifts = temp_node -> get_shifts();
 									for(int irr=0; irr < noi; ++irr)
-									{										
+									{
 										store_trustee_shifts[time_step][level][irr] = trustee_shifts[level][irr];
-									}							
-									for(int belief=0; belief < nob ; ++belief) 
+									}
+									for(int belief=0; belief < nob ; ++belief)
 									{
 										//---------------------- action probability calculation, if not already explored -----------------
 										if(!(temp_node-> get_confirm_exploration(belief, level)))
 										{
-											guilt_parameter[level-1]=belief; 
+											guilt_parameter[level-1]=belief;
 											trustee_k( Subject_Games[sub_id][0][time_step]
 											, time_step
 											, trustee_planning
@@ -3814,13 +3848,13 @@ int main(int argc, char* argv[])
 											, trustee_temperature
 											, mempool
 											, &temp_node);
-										}	
+										}
 									}
 									//------------------------------ expectation on trustee action, if not yet calculated -------------------------------------------
 									if(level <(Subject_ToM[sub_id][1]+1))
-									{					
+									{
 										if(!temp_node -> expectation_set(level))
-										{	
+										{
 											double sum = 0.0;
 											double isum = 0.0;
 											trustee_belief_parameters = temp_node -> get_belief_parameters();
@@ -3842,15 +3876,15 @@ int main(int argc, char* argv[])
 											for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 											{
 												main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-											}							
+											}
 											trustee_expectation_calculation( level, &temp_node,  main_running_belief_probability , main_irr_probability, Subject_Games[sub_id][0][time_step]);
 										}
-										
-									}		
+
+									}
 									store_trustee_expectation[time_step][level] = temp_node ->get_expectation(level);
 								}
 
-								
+
 							}
 
 							if((Subject_Games[sub_id][0][time_step]==0))
@@ -3864,33 +3898,33 @@ int main(int argc, char* argv[])
 								{
 									if((Subject_ToM[sub_id][1]+level+2)%2== 0)
 									{	//get action probabilities for all relevant levels
-										main_exp_payoffs = temp_node->get_exp_payoffs(level+1);	
+										main_exp_payoffs = temp_node->get_exp_payoffs(level+1);
 										main_i_exp_payoffs = temp_node->get_exp_payoffs(0);
 										//store relevant action probabilities for potential output
 										store_trustee_payoffs[time_step][level] = main_exp_payoffs;
-										store_trustee_shifted_payoffs[time_step][level] = main_i_exp_payoffs;	
-										
+										store_trustee_shifted_payoffs[time_step][level] = main_i_exp_payoffs;
+
 									}
 								}
 
 							}
-							
+
 							if(!(Subject_Games[sub_id][0][time_step]==0))
 							{
 								for(int level = 0; level < Subject_ToM[sub_id][1]+1; ++level)
 								{
 									if( (Subject_ToM[sub_id][1]+level+2)%2== 0)
 									{
-										//use earlier extracted probabilities 
+										//use earlier extracted probabilities
 										trustee_payoffs = store_trustee_payoffs[time_step][level];
 										shifted_payoffs = store_trustee_shifted_payoffs[time_step][level];
 										trustee_shifts = temp_node->get_shifts();
 										// form current probabilities by mixing appropriate irritated and non-irritated values
-										// test all possible settings for guilt, irritation and level										
+										// test all possible settings for guilt, irritation and level
 										for(int bel=0; bel < nob; ++bel)
-										{													
+										{
 											for(int irr =0; irr < noi; ++irr)
-											{													
+											{
 												for(int pot_act =0; pot_act  < noa; ++pot_act )
 												{
 
@@ -3916,43 +3950,43 @@ int main(int argc, char* argv[])
 												{
 													Tlike[irr][level][bel] += 1000.0;
 												}
-											} 
+											}
 										}
 									}
 									else
 									{
 										for(int irr =0; irr < noi; ++irr)
-										{	
+										{
 											for(int bel=0; bel < nob; ++bel)
 											{
 												for(int p_act =0; p_act  < noa; ++p_act )
-												{	
+												{
 													hold_trustee_payoffs[level][time_step][irr][bel][p_act] = 0.0;
 												}
 											}
-										}										
+										}
 									}
 								}
-								
+
 							}
 							else
 							{
 								for(int level = 0; level < noT; ++level)
-								{	
+								{
 									for(int irr =0; irr < noi; ++irr)
-									{	
+									{
 										for(int bel=0; bel < nob; ++bel)
 										{
 											for(int p_act =0; p_act  < noa; ++p_act )
-											{	
+											{
 												hold_trustee_payoffs[level][time_step][irr][bel][p_act] = 0.0;
 											}
 										}
 									}
-								}									
+								}
 							}
 
-							trustee_belief_parameters = temp_node -> get_belief_parameters();							
+							trustee_belief_parameters = temp_node -> get_belief_parameters();
 							trustee_shifts = temp_node -> get_shifts();
 							trustee_irr_beliefs = temp_node -> get_irr_beliefs();
 							for(int k =0; k < noT; ++k)
@@ -3964,10 +3998,10 @@ int main(int argc, char* argv[])
 								for(int irr_belief=0; irr_belief < noi; ++irr_belief)
 								{
 									store_trustee_irr_beliefs[time_step][k][irr_belief] = trustee_irr_beliefs[k][irr_belief];
-								}			
-							}	
+								}
+							}
 							//------------------------------Generative Trustee Block
-							/*if(!(Subject_Games[sub_id][0][time_step]==0)) 
+							/*if(!(Subject_Games[sub_id][0][time_step]==0))
 							{
 								Subject_Games[sub_id][1][time_step] = softmax( hold_trustee_payoffs[Subject_ToM[sub_id][1]][time_step][trustee_irr][Subject_Guilt[sub_id][1]], 201202);
 							}
@@ -3975,40 +4009,40 @@ int main(int argc, char* argv[])
 							{
 								Subject_Games[sub_id][1][time_step] = 0;
 							}*/
-							//ofs.write( reinterpret_cast<char*>( &Subject_Games[sub_id][1][time_step] ), sizeof Subject_Games[sub_id][1][time_step] );			
+							//ofs.write( reinterpret_cast<char*>( &Subject_Games[sub_id][1][time_step] ), sizeof Subject_Games[sub_id][1][time_step] );
 							// Investor Inference
-							double trustee_monetary_response = 1.0/6.0*static_cast<double>(rbf*5*Subject_Games[sub_id][0][time_step]*Subject_Games[sub_id][1][time_step]);			
-								
+							double trustee_monetary_response = 1.0/6.0*static_cast<double>(rbf*5*Subject_Games[sub_id][0][time_step]*Subject_Games[sub_id][1][time_step]);
+
 							temp_node = investor_node->get_child(Subject_Games[sub_id][0][time_step]); //move from root to trustee response along the chosen action
 							//calculate the trustee response likelihoods
 							for(int level = 1; level <=Subject_ToM[sub_id][0]+1 ; ++level)
-							{	
+							{
 								investor_belief_parameters = investor_node -> get_belief_parameters();
 								investor_irr_beliefs = investor_node -> get_irr_beliefs();
 								investor_shifts = investor_node -> get_shifts();
 								for(int b=0; b < nob; ++b)
-								{		
+								{
 									temp_node-> set_belief_parameters(b, investor_belief_parameters[level-1][b], level-1);
 								}
 								for(int irr=0; irr < noi; ++irr)
 								{
 									temp_node-> set_irr_parameters(irr, investor_irr_beliefs[level-1][irr], level-1);
-								}					
+								}
 
 								for(int irr=0; irr < noi; ++irr)
-								{	
-									temp_node -> set_shift(level, investor_shifts[level][irr], irr);		
-								}				
+								{
+									temp_node -> set_shift(level, investor_shifts[level][irr], irr);
+								}
 
 								if((Subject_ToM[sub_id][0]+3-level)%2== 1)
-								{ 
+								{
 									// belief and shift updates
-									belief_updates(&investor_node, &temp_node, level, investor_monetary_action, Subject_Games[sub_id][0][time_step], true);								
+									belief_updates(&investor_node, &temp_node, level, investor_monetary_action, Subject_Games[sub_id][0][time_step], true);
 									shift_updates(&investor_node, &temp_node, level, investor_monetary_action);
 									//----
 									investor_shifts = temp_node -> get_shifts();
 									for(int irr=0; irr < noi; ++irr)
-									{										
+									{
 										store_investor_shifts[time_step][level][irr] = investor_shifts[level][irr];
 									}
 									for(int guilt=0; guilt < nob; ++guilt)
@@ -4018,8 +4052,8 @@ int main(int argc, char* argv[])
 										{
 
 											//	}
-											//}		
-											guilt_parameter[level-1]=guilt; 
+											//}
+											guilt_parameter[level-1]=guilt;
 											trustee_k(Subject_Games[sub_id][0][time_step]
 											, time_step
 											, investor_planning
@@ -4038,9 +4072,9 @@ int main(int argc, char* argv[])
 									}
 									//------------------------------- set expectation sub-block -----------------------
 									if(level <(Subject_ToM[sub_id][0]+1))
-									{					
+									{
 										if(!temp_node -> expectation_set(level))
-										{	
+										{
 											double sum = 0.0;
 											double isum = 0.0;
 											investor_belief_parameters = temp_node -> get_belief_parameters();
@@ -4062,22 +4096,22 @@ int main(int argc, char* argv[])
 											for(int guilt_counter=0; guilt_counter < noi; ++guilt_counter)
 											{
 												main_irr_probability[guilt_counter] = main_irr_probability[guilt_counter]/isum;
-											}							
+											}
 											trustee_expectation_calculation( level, &temp_node,  main_running_belief_probability , main_irr_probability, Subject_Games[sub_id][0][time_step]);
-										}		
-								
+										}
+
 									}
-									store_investor_expectation[time_step][level] = temp_node->get_expectation(level);	
+									store_investor_expectation[time_step][level] = temp_node->get_expectation(level);
 								}
 
 							}
 							//get investor final beliefs and shifts
-							temp_node = investor_node->get_child(Subject_Games[sub_id][0][time_step]); 
+							temp_node = investor_node->get_child(Subject_Games[sub_id][0][time_step]);
 							store_investor_expectation[time_step][0] = temp_node->get_expectation(0);
 							Trust = temp_node-> get_child(Subject_Games[sub_id][1][time_step]);
 							if(Trust) //save beliefs and shifts outside of the node, so at the beginning of the next round, nodes can be initialized to current values
 							{
-								investor_belief_parameters = Trust -> get_belief_parameters();			
+								investor_belief_parameters = Trust -> get_belief_parameters();
 								investor_shifts = Trust -> get_shifts();
 								investor_irr_beliefs = Trust -> get_irr_beliefs();
 								for(int k =0; k < noT; ++k)
@@ -4089,37 +4123,37 @@ int main(int argc, char* argv[])
 									for(int irr_belief=0; irr_belief < noi; ++irr_belief)
 									{
 										store_investor_irr_beliefs[time_step][k][irr_belief] = investor_irr_beliefs[k][irr_belief];
-									}						
-								}	
-							}		
+									}
+								}
+							}
 							//get trustee final beliefs and shifts
-							temp_node = trustee_node->get_child(Subject_Games[sub_id][0][time_step]); 
-							Trust = temp_node ->get_child(Subject_Games[sub_id][1][time_step]);	
-		
+							temp_node = trustee_node->get_child(Subject_Games[sub_id][0][time_step]);
+							Trust = temp_node ->get_child(Subject_Games[sub_id][1][time_step]);
+
 							if(Trust)	//save beliefs and shifts outside of the node, so at the beginning of the next round, nodes can be initialized to current values
 							{
 								trustee_belief_parameters = Trust -> get_belief_parameters();
 								trustee_shifts = Trust -> get_shifts();
-								trustee_irr_beliefs = Trust -> get_irr_beliefs();	
+								trustee_irr_beliefs = Trust -> get_irr_beliefs();
 							}
-		
+
 							delete investor_node; //delete current calculation investor
 
 							delete trustee_node; //delete current calculation trustee
-							
+
 							mempool.DeleteAll(); //clear local mempool
-					
+
 						}
 
 						for(int level = 0; level < noT; ++level)
-						{	
+						{
 							for(int irr =0; irr < noi; ++irr)
-							{	
+							{
 								//----------------------------- Investor winning model block ----------------------------------
 								if((Subject_ToM[sub_id][0]+level+2)%2== 0)	//possible investor levels in steps of 2 from the specified level (Subject_ToM)
-								{ 						
+								{
 									for(int val_Guilt = 0 ; val_Guilt < nob; ++val_Guilt)
-									{		
+									{
 										if(like[irr][level][val_Guilt] < Ilike_max)
 										{ //---------------------  Update winning parameters for later output, if Negative-log-likelihood has improved ------------
 											WI_ToM = level;
@@ -4140,7 +4174,7 @@ int main(int argc, char* argv[])
 														WI_investor_belief_parameters[time_step][k][guilt_belief] = store_investor_belief_parameters[time_step][k][guilt_belief];
 													}
 													for(int irr_new=0; irr_new < noi; ++irr_new)
-													{													
+													{
 														WI_irr_beliefs[time_step][k][irr_new]=store_investor_irr_beliefs[time_step][k][irr_new];
 														WI_investor_shifts[time_step][k][irr_new] = store_investor_shifts[time_step][k][irr_new];
 														WI_investor_shifts[time_step][k+1][irr_new] = store_investor_shifts[time_step][k+1][irr_new];
@@ -4148,25 +4182,25 @@ int main(int argc, char* argv[])
 													for(int guilt_belief=0; guilt_belief < nob; ++guilt_belief)
 													{
 														for(int irr_new=0; irr_new < noi; ++irr_new)
-														{			
+														{
 															for(int p_act =0; p_act  < noa; ++p_act )
 															{
 																WI_investor_payoffs[k][time_step][irr_new][guilt_belief][p_act] = hold_investor_payoffs[k][time_step][irr_new][guilt_belief][p_act];
 															}
 														}
-													}														
+													}
 												}
 											}
 										}
-										
+
 									}
 								}
 								//----------------------------- Trustee winning model block ----------------------------------
 								if((Subject_ToM[sub_id][1]+level+2)%2== 0)
-								{ 	
+								{
 									for(int val_Guilt = 0 ; val_Guilt < nob; ++val_Guilt)
 									{
-											
+
 										if(Tlike[irr][level][val_Guilt] < Tlike_max)
 										{	//---------------------  Update winning parameters for later output, if Negative-log-likelihood has improved ------------
 											WT_temp = trustee_temperature;
@@ -4189,125 +4223,125 @@ int main(int argc, char* argv[])
 														WT_trustee_belief_parameters[time_step][k][guilt_belief] = store_trustee_belief_parameters[time_step][k][guilt_belief];
 													}
 													for(int irr_new=0; irr_new < noi; ++irr_new)
-													{													
+													{
 														WT_irr_beliefs[time_step][k][irr_new]=store_trustee_irr_beliefs[time_step][k][irr_new];
 														WT_trustee_shifts[time_step][k][irr_new] = store_trustee_shifts[time_step][k][irr_new];
 														WT_trustee_shifts[time_step][k+1][irr_new] = store_trustee_shifts[time_step][k+1][irr_new];
-													}	
+													}
 													for(int guilt_belief=0; guilt_belief < nob; ++guilt_belief)
 													{
 														for(int irr_new=0; irr_new < noi; ++irr_new)
-														{			
+														{
 															for(int p_act =0; p_act  < noa; ++p_act )
 															{
 																WT_trustee_payoffs[k][time_step][irr_new][guilt_belief][p_act] = hold_trustee_payoffs[k][time_step][irr_new][guilt_belief][p_act];
 															}
 														}
-													}														
+													}
 												}
-											}						
-										}	
+											}
+										}
 
 									}
-								}							
-							}		
-						}							
-					}						
+								}
+							}
+						}
+					}
 				}
 			}
 		}
 
 		// ---------------------------------------------------------- Output block ----------------------------------------------------------
-		
-		ofs.write( reinterpret_cast<char*>( &Ilike_max ), sizeof Ilike_max );		
 
-		ofs.write( reinterpret_cast<char*>( &WI_ToM ), sizeof WI_ToM );		
+		ofs.write( reinterpret_cast<char*>( &Ilike_max ), sizeof Ilike_max );
 
-		ofs.write( reinterpret_cast<char*>( &WI_G ), sizeof WI_G );			
+		ofs.write( reinterpret_cast<char*>( &WI_ToM ), sizeof WI_ToM );
 
-		ofs.write( reinterpret_cast<char*>( &WI_risk ), sizeof WI_risk );			
-		
-		ofs.write( reinterpret_cast<char*>( &WI_P ), sizeof WI_P );	
+		ofs.write( reinterpret_cast<char*>( &WI_G ), sizeof WI_G );
 
-		ofs.write( reinterpret_cast<char*>( &WI_temp ), sizeof WI_temp );	
-		
-		ofs.write( reinterpret_cast<char*>( &WI_shift ), sizeof WI_shift);			
+		ofs.write( reinterpret_cast<char*>( &WI_risk ), sizeof WI_risk );
 
-		ofs.write( reinterpret_cast<char*>( &WI_irritability ), sizeof WI_irritability );	
+		ofs.write( reinterpret_cast<char*>( &WI_P ), sizeof WI_P );
 
-		ofs.write( reinterpret_cast<char*>( &Tlike_max ), sizeof Tlike_max );					
+		ofs.write( reinterpret_cast<char*>( &WI_temp ), sizeof WI_temp );
 
-		ofs.write( reinterpret_cast<char*>( &WT_ToM ), sizeof WT_ToM );		
+		ofs.write( reinterpret_cast<char*>( &WI_shift ), sizeof WI_shift);
 
-		ofs.write( reinterpret_cast<char*>( &WT_G ), sizeof WT_G );		
-		
-		ofs.write( reinterpret_cast<char*>( &WT_risk ), sizeof WT_risk );			
+		ofs.write( reinterpret_cast<char*>( &WI_irritability ), sizeof WI_irritability );
 
-		ofs.write( reinterpret_cast<char*>( &WT_P ), sizeof WT_P );	
+		ofs.write( reinterpret_cast<char*>( &Tlike_max ), sizeof Tlike_max );
 
-		ofs.write( reinterpret_cast<char*>( &WT_temp ), sizeof WT_temp );	
+		ofs.write( reinterpret_cast<char*>( &WT_ToM ), sizeof WT_ToM );
 
-		ofs.write( reinterpret_cast<char*>( &WT_shift ), sizeof WT_shift);			
-		
-		ofs.write( reinterpret_cast<char*>( &WT_irritability ), sizeof WT_irritability);		
-		//ofs.write( reinterpret_cast<char*>( &WT_irritability ), sizeof WT_irritability);		
-		
+		ofs.write( reinterpret_cast<char*>( &WT_G ), sizeof WT_G );
+
+		ofs.write( reinterpret_cast<char*>( &WT_risk ), sizeof WT_risk );
+
+		ofs.write( reinterpret_cast<char*>( &WT_P ), sizeof WT_P );
+
+		ofs.write( reinterpret_cast<char*>( &WT_temp ), sizeof WT_temp );
+
+		ofs.write( reinterpret_cast<char*>( &WT_shift ), sizeof WT_shift);
+
+		ofs.write( reinterpret_cast<char*>( &WT_irritability ), sizeof WT_irritability);
+		//ofs.write( reinterpret_cast<char*>( &WT_irritability ), sizeof WT_irritability);
+
 		for(int time_step =0; time_step < global_time_horizon; ++time_step)
-		{	
+		{
 			for(int k =0; k < noT; ++k)
-			{	
+			{
 				ofs.write( reinterpret_cast<char*>( &WI_investor_expectation[time_step][k] ), sizeof WI_investor_expectation[time_step][k]);
 				for(int guilt_belief=0; guilt_belief < nob; ++guilt_belief)
-				{	
+				{
 					ofs.write( reinterpret_cast<char*>(&WI_investor_belief_parameters[time_step][k][guilt_belief]), sizeof WI_investor_belief_parameters[time_step][k][guilt_belief]);
 				}
 				for(int irr_belief=0; irr_belief < noi; ++irr_belief)
-				{		
+				{
 					ofs.write( reinterpret_cast<char*>(&WI_irr_beliefs[time_step][k][irr_belief]), sizeof WI_irr_beliefs[time_step][k][irr_belief]);
 					ofs.write( reinterpret_cast<char*>(&WI_investor_shifts[time_step][k][irr_belief]), sizeof WI_investor_shifts[time_step][k][irr_belief]);
 					ofs.write( reinterpret_cast<char*>(&WI_investor_shifts[time_step][k+1][irr_belief]), sizeof WI_investor_shifts[time_step][k+1][irr_belief]);
-				}	
+				}
 				for(int guilt_belief=0; guilt_belief < nob; ++guilt_belief)
 				{
 					for(int irr_belief=0; irr_belief < noi; ++irr_belief)
-					{			
+					{
 						for(int p_act =0; p_act  < noa; ++p_act )
-						{		
+						{
 							ofs.write( reinterpret_cast<char*>(&WI_investor_payoffs[k][time_step][irr_belief][guilt_belief][p_act]), sizeof WI_investor_payoffs[k][time_step][irr_belief][guilt_belief][p_act]);
 						}
 					}
-				}					
-			}				
+				}
+			}
 		}
 		for(int time_step =0; time_step < global_time_horizon; ++time_step)
 		{
 			for(int k =0; k < noT; ++k)
-			{				
+			{
 				ofs.write( reinterpret_cast<char*>( &WT_trustee_expectation[time_step][k] ), sizeof WT_trustee_expectation[time_step][k]);
 				for(int guilt_belief=0; guilt_belief < nob; ++guilt_belief)
-				{	
+				{
 					ofs.write( reinterpret_cast<char*>(&WT_trustee_belief_parameters[time_step][k][guilt_belief]), sizeof WT_trustee_belief_parameters[time_step][k][guilt_belief]);
 				}
 				for(int irr_belief=0; irr_belief < noi; ++irr_belief)
-				{		
+				{
 					ofs.write( reinterpret_cast<char*>(&WT_irr_beliefs[time_step][k][irr_belief]), sizeof WT_irr_beliefs[time_step][k][irr_belief]);
 					ofs.write( reinterpret_cast<char*>(&WT_trustee_shifts[time_step][k][irr_belief]), sizeof WT_trustee_shifts[time_step][k][irr_belief]);
 					ofs.write( reinterpret_cast<char*>(&WT_trustee_shifts[time_step][k+1][irr_belief]), sizeof WT_trustee_shifts[time_step][k+1][irr_belief]);
-				}	
+				}
 				for(int guilt_belief=0; guilt_belief < nob; ++guilt_belief)
 				{
 					for(int irr_belief=0; irr_belief < noi; ++irr_belief)
-					{			
+					{
 						for(int p_act =0; p_act  < noa; ++p_act )
-						{		
+						{
 							ofs.write( reinterpret_cast<char*>(&WT_trustee_payoffs[k][time_step][irr_belief][guilt_belief][p_act]), sizeof WT_trustee_payoffs[k][time_step][irr_belief][guilt_belief][p_act]);
 						}
 					}
-				}						
+				}
 			}
-		}			
+		}
 	}
 	ofs.close();
 	delete Irritation_Investor;
-	mexpool.DeleteAll();	
+	mexpool.DeleteAll();
 }

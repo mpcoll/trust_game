@@ -14,6 +14,7 @@
 
 #include <boost/function.hpp>
 #include <boost/utility.hpp>
+#include <boost/array.hpp>
 
 
 
