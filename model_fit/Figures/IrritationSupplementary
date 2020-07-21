@@ -1,0 +1,277 @@
+# setPDF()
+#pdf("IrrTrue.pdf", height = 12, width = 24, 
+# bg = "white")
+library(tikzDevice)
+options(tikzMetricPackages = c("\\usepackage[utf8]{inputenc}",
+    "\\usepackage[T1]{fontenc}", "\\usetikzlibrary{calc}",
+    "\\usepackage{amssymb}"))
+tikz("IrrIllust.tex", width = 8, height = 4.5, standAlone = TRUE,
+    packages = c("\\usepackage{tikz}",
+                 "\\usepackage[active,tightpage,psfixbb]{preview}",
+                 "\\PreviewEnvironment{pgfpicture}",
+                 "\\setlength\\PreviewBorder{0pt}",
+                 "\\usepackage{amssymb}"))
+
+par(mar=c(1,1,1,1)+0.1, mai = c(0.5,0.5,0.5,0.5), #oma = c(3,3,3,3), mar=c(5,4,4,1)+0.1, mai = c(1,1.3,1,1)
+cex = 1, cex.lab = 1, cex.axis =1, cex.main = 1)#, cex.text = 1)
+layout(matrix(c(1, 4, 2,5,3,6), 2,3))
+
+	Value = matrix(c(  0.1883 ,   0.1950,    0.1942 ,   0.2125 ,   0.1725,    0.1950,    0.1708,    0.1592,    0.1383,
+0.1317, # coral
+0.3183,    0.3292,    0.3233,    0.3275,    0.3350,    0.3433,    0.3333,    0.3017,    0.2242,
+0.1100, #red
+0.4275,    0.4575,    0.4537,    0.4587,    0.4950,    0.4988,    0.5313,    0.5150 ,   0.4888, # blue
+0.4100,
+0.3962,    0.4387,    0.4638,    0.4338,    0.4575,    0.4425,    0.4375,    0.4500,    0.4263, #turq
+ 0.4338),10,4)
+
+	Value2 = matrix(c( 0.3, 0.3333,    0.3352,    0.3381,    0.3395,    0.3429,    0.3439,    0.3446,    0.3480,    0.3595,
+0.3939,   
+0, 0.0,0.0000,0.0000,0.0,0.0,0.0,0.0,0.0,
+0.0,0.0), 11, 2)
+
+	Value4 = matrix(1/sqrt(200)*c(
+ 0.1747,    0.1721,    0.1686,    0.1897,    0.1723,    0.1729,    0.1740,    0.1698,    0.1604,
+0.1757,
+ 0.0118,    0.0118,    0.0312,    0.1549,    0.2237,    0.2262,    0.2308,    0.1734,
+   0.1669,    0.1022,
+0.2045,    0.2285,    0.2431,    0.2453,    0.2722,    0.2682,    0.2604,    0.2832,    0.2817,
+0.3018,
+ 0.1897,    0.2331,    0.2289,    0.2304,    0.2418,    0.2413,    0.2280,    0.2256,    0.2124,
+0.2206),10,4)
+
+	Value5 = matrix(1/sqrt(200)*c(0, 0 ,   0.0143,    0.0247 ,   0.0316 ,   0.0408,    0.0430,    0.0434,    0.0469,    0.0596,
+0.0799,
+0, 0, 0,0,0,0,0,0,0,
+ 0,0),11,2)
+
+	Value6 = matrix(c(0, 0, 0,
+  0,  0,  0,  0,  0, 0,  0,
+0,  0,
+    0, 0.0125, 0.0150, 0.0075, 0.0225, 0.0125, 0.0075, 0.0200, 0.0625,
+  0.2075),11,2)
+
+
+	Value7 = matrix(1/sqrt(200)*c(0,0,0, 0,0, 0,
+ 0, 0,  0, 0, 0,
+ 0, 0, 0.0783, 0.0855, 0.0609, 0.1039, 0.0783, 0.0609, 0.0982, 0.1658,
+ 0.2618),11,2)
+
+	matplot(array(c((1:10),(1:10), (1:10),(1:10)),10,4), 
+	main= "A)            Aware Exchanges, 
+      $\\zeta^I =0.5, q^T(\\zeta^I)=1$                ",  #
+	cex.main = 1.2, 
+	array(c(Value[,1], Value[,2], Value[,3], Value[,4]),c(10,4)),
+	axes = TRUE,
+	xlab = ' ', 
+	ylab = ' ', 
+	xaxt = 'n',
+	#xlab = 'At Step', 
+	#ylab = 'Fraction sent', 
+	xlim = c(1,10), xaxp = c(1,10,9),
+	 ylim=c(0,1),yaxp=c(0,1,4),
+	#outer = TRUE,
+	frame.plot = FALSE, 
+	type =c("l", "l", "l", "l"), lwd =2, lty = c(1,1,1,1), #line = 8,
+	col = c("coral","red", "blue","lightblue"), cex.axis = 1 , cex.lab = 1);
+	mtext(text = " Fraction sent ", side = 2, cex = 0.8, line = 2.2)
+	mtext(text = " At Step ", side = 1, cex = 0.8, line = 2.2)
+	axis(1, at= (1:10),labels=c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+	 col.axis="black")
+	arrows((1:10), Value[,1], (1:10), Value[,1]+Value4[,1], 0.01, 90);
+	arrows((1:10), Value[,1], (1:10), Value[,1]-Value4[,1], 0.01, 90);
+	arrows((1:10), Value[,2], (1:10), Value[,2]+Value4[,2], 0.01, 90);
+	arrows((1:10), Value[,2], (1:10), Value[,2]-Value4[,2], 0.01, 90);
+	arrows((1:10), Value[,3], (1:10), Value[,3]+Value4[,3], 0.01, 90);
+	arrows((1:10), Value[,3], (1:10), Value[,3]-Value4[,3], 0.01, 90);
+	arrows((1:10), Value[,4], (1:10), Value[,4]+Value4[,4], 0.01, 90);
+	arrows((1:10), Value[,4], (1:10), Value[,4]-Value4[,4], 0.01, 90);
+	#legend(1,2, text= c("LH", "HL"), x="topright", bty = 'n', cex = 1.8)
+	legend(x="topright", 2, c("$\\zeta^I = 0$", "$\\zeta^I = 0.5$", "$\\zeta^T = 0, q^T(\\zeta^I) = 1$", 
+"$\\zeta^T = 0, q^T(\\zeta^I) = 0$"),
+      lty = c(1,1,1,1), col = 
+c("lightblue","blue", "red", "coral"),
+	 bty = 'n', cex = 1)
+
+
+	matplot(array(c((0:10),(0:10)),11,2), 
+	main= "B)      Inference on Partner Irritability, 
+Evolution of $\\mathcal B (\\zeta^{\\textrm{partner}})   $           ",  
+	cex.main = 1.2, 
+	array(c(Value2[,1], Value2[,2]),c(11,2)),
+	xlab = ' ', 
+	ylab = ' ', 
+	xaxt = 'n',
+	#xlab = 'At Step', ylab = 'Irritability Belief', 
+	xlim = c(0,10), xaxp = c(0,10,10),
+	 ylim=c(0,1),yaxp=c(0,1,4),
+	frame.plot = FALSE, 
+	type =c("l", "l"), lwd =2, lty = c(1,1), 
+	col = c("red", "blue"), , cex.axis = 1, cex.lab = 1)
+	mtext(text = " $\\mathbb P (\\zeta^{\\textrm{partner}} > 0)$ ", 
+	side = 2, cex = 0.8, line = 2.2)
+	mtext(text = " At Step ", side = 1, cex = 0.8, line = 2.2)
+	axis(1, at= (0:10),labels=c("0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), col.axis="black")
+	legend(x="topright", 2, c("$\\mathbb P^T(\\zeta^I>0)$",
+"$\\mathbb P^I(\\zeta^T>0)$"),
+      lty = c(1,1), col = c("red", "blue"),
+	 bty = 'n', cex = 1)
+	arrows((0:10), Value2[,1], (0:10), Value2[,1]+Value5[,1], 0.01, 90);
+	arrows((0:10), Value2[,1], (0:10), Value2[,1]-Value5[,1], 0.01, 90);
+	arrows((0:10), Value2[,2], (0:10), Value2[,2]+Value5[,2], 0.01, 90);
+	arrows((0:10), Value2[,2], (0:10), Value2[,2]-Value5[,2], 0.01, 90);
+
+
+	matplot(array(c((0:10),(0:10)),11,2), 
+	main= "C)            Internal State Change,
+      Evolution of $\\nu$             ",  
+	cex.main = 1.2, 
+	array(c(Value6[,1], Value6[,2]),c(11,2)),
+	xlab = ' ', 
+	ylab = ' ', 
+	xaxt = 'n',
+	#xlab = 'At Step', ylab = 'Average $\\nu$', 
+	xlim = c(0,10), xaxp = c(0,10,10),
+	 ylim=c(0,1),yaxp=c(0,1,4),
+	frame.plot = FALSE, 
+	type =c("l", "l"), lwd =2, lty = c(1,1), 
+	col = c("red", "blue"), , cex.axis = 1 , cex.lab = 1)
+	mtext(text = " Average $\\nu$ ", side = 2, cex = 0.8, line = 2.2)
+	mtext(text = " At Step ", side = 1, cex = 0.8, line = 2.2)
+	axis(1, at= (0:10),labels=c("0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+	 col.axis="black")
+	legend(x="topright", 2, c(" $\\nu^T$ ",
+" $\\nu^I$"),
+      lty = c(1,1), col = c("red", "blue"),
+	 bty = 'n', cex = 1)
+	arrows((0:10), Value6[,1], (0:10), Value6[,1]+Value7[,1], 0.01, 90);
+	arrows((0:10), Value6[,1], (0:10), Value6[,1]-Value7[,1], 0.01, 90);
+	arrows((0:10), Value6[,2], (0:10), Value6[,2]+Value7[,2], 0.01, 90);
+	arrows((0:10), Value6[,2], (0:10), Value6[,2]-Value7[,2], 0.01, 90);
+
+	Value8 = matrix(c(  0.1908,    0.1558,    0.1583,    0.1492,    0.1308,    0.1267,    0.1008,    0.0833,
+  0.0700,    0.0642, # red
+0.1883,    0.1950 ,   0.1942 ,   0.2125 ,   0.1725,    0.1950,    0.1708,    0.1592,    0.1383,
+0.1317, #brown
+0.3875,    0.3738,    0.3500,    0.2775,    0.3175 ,   0.2712,    0.2650,    0.2188, #light blue
+ 0.2125,    0.1613,
+0.3962,    0.4387,    0.4638,    0.4338,    0.4575,    0.4425,    0.4375,    0.4500,    0.4263, #turq
+0.4338),10,4)
+
+
+	Value9 = matrix(1/sqrt(200)*c(
+ 0.1606,    0.1729,    0.1821,    0.1908 ,   0.1686 ,   0.1689,    0.1512,    0.1447,
+   0.1371,    0.1247,
+ 0.1747,    0.1721,    0.1686,    0.1897,    0.1723,    0.1729,    0.1740,    0.1698,    0.1604,
+  0.1757,
+0.1969,    0.2847,    0.2987,    0.2855,    0.2962,    0.2974,    0.2897,    0.2722,
+0.2765,    0.2254,
+0.1897,    0.2331,    0.2289,    0.2304,    0.2418,    0.2413 ,   0.2280,    0.2256,    0.2124,
+ 0.2206),10,4)
+
+	Value10 = matrix(c(0, 0,0, 0, 0, 
+   0,  0,  0,  0, 0 ,   0,
+0,    0,    0.2150,    0.3225,    0.4000,    0.4125,    0.4975,    0.5250,    0.5975,
+0.6675,    0.7200), 11, 2)
+
+
+	Value11 = matrix(1/sqrt(200)*c(0,0,0, 0,0, 0,
+ 0, 0,  0, 0, 0,
+ 0, 0,    0.2482,    0.3126,    0.3817,    0.3929,    0.3963,    0.4064,    0.4001,
+0.3859,    0.3532),11,2)
+
+	matplot(array(c((1:10),(1:10), (1:10),(1:10)),10,4), 
+	main= "D)            Unaware Exchanges, 
+      $\\zeta^I = 0.5, q^T(\\zeta^I)=0$                ",  
+	cex.main = 1.2, 
+	array(c(Value8[,1], Value8[,2], Value8[,3], Value8[,4]),c(10,4)),
+	axes = TRUE,
+	xlab = ' ', 
+	ylab = ' ', 
+	xaxt = 'n',
+	xlim = c(1,10), xaxp = c(1,10,9),
+	 ylim=c(0,1),yaxp=c(0,1,4),
+	frame.plot = FALSE, 
+	type =c("l", "l", "l", "l"), lwd =2, lty = c(1,1,1,1), #line = 8,
+	col = c("red", "coral","blue","lightblue"), cex.axis = 1 , cex.lab = 1);
+	mtext(text = " Fraction sent ", side = 2, cex = 0.8, line = 2.2)
+	mtext(text = " At Step ", side = 1, cex = 0.8, line = 2.2)
+	axis(1, at= (1:10),labels=c("1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+	 col.axis="black")
+	arrows((1:10), Value8[,1], (1:10), Value8[,1]+Value9[,1], 0.01, 90);
+	arrows((1:10), Value8[,1], (1:10), Value8[,1]-Value9[,1], 0.01, 90);
+	arrows((1:10), Value8[,2], (1:10), Value8[,2]+Value9[,2], 0.01, 90);
+	arrows((1:10), Value8[,2], (1:10), Value8[,2]-Value9[,2], 0.01, 90);
+	arrows((1:10), Value8[,3], (1:10), Value8[,3]+Value9[,3], 0.01, 90);
+	arrows((1:10), Value8[,3], (1:10), Value8[,3]-Value9[,3], 0.01, 90);
+	arrows((1:10), Value8[,4], (1:10), Value8[,4]+Value9[,4], 0.01, 90);
+	arrows((1:10), Value8[,4], (1:10), Value8[,4]-Value9[,4], 0.01, 90);
+	#legend(1,2, text= c("LH", "HL"), x="topright", bty = 'n', cex = 1.8) 8, 11
+	legend(x="topright", legend = c("$\\zeta^I = 0$", "$\\zeta^I = 0.5$", "$\\zeta^T = 0, q^T(\\zeta^I) = 0$", 
+"$\\zeta^T = 0, q^T(\\zeta^I) = 0$"),
+      lty = c(1,1,1,1), col = 
+c("lightblue","blue", "red", "coral"),
+	 bty = 'n', cex = 1, xpd = TRUE)
+
+	matplot(array(c((0:10),(0:10)),11,2), 
+	main= "E)      Inference on Partner Irritability, 
+Evolution of $\\mathcal B (\\zeta^{\\textrm{partner}})$            ",  
+	cex.main = 1.2, 
+	#cex.main = 3, 
+	array(c(Value2[,2], Value2[,2]),c(11,2)),
+	xlab = ' ', 
+	ylab = ' ', 
+	xaxt = 'n',
+	#xlab = 'At Step', ylab = 'Irritability Belief', 
+	xlim = c(0,10), xaxp = c(0,10,10),
+	 ylim=c(0,1),yaxp=c(0,1,4),
+	frame.plot = FALSE, 
+	type =c("l", "l"), lwd =2, lty = c(1,1), 
+	col = c("red", "blue"), , cex.axis = 1, cex.lab = 1)
+	mtext(text = " $\\mathbb P (\\zeta^{\\textrm{partner}} > 0)$ ", 
+	side = 2, cex = 0.8, line = 2.2)
+	mtext(text = " At Step ", side = 1, cex = 0.8, line = 2.2)
+	axis(1, at= (0:10),labels=c("0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10"),
+	 col.axis="black")
+	legend(x="topright", 2, c("$\\mathbb P^T(\\zeta^I>0)$",
+"$\\mathbb P^I(\\zeta^T>0)$"),
+      lty = c(1,1), col = c("red", "blue"),
+	 bty = 'n', cex = 1)
+	arrows((0:10), Value2[,2], (0:10), Value2[,2]+Value5[,2], 0.01, 90);
+	arrows((0:10), Value2[,2], (0:10), Value2[,2]-Value5[,2], 0.01, 90);
+	arrows((0:10), Value2[,2], (0:10), Value2[,2]+Value5[,2], 0.01, 90);
+	arrows((0:10), Value2[,2], (0:10), Value2[,2]-Value5[,2], 0.01, 90);
+
+
+
+	matplot(array(c((0:10),(0:10)),11,2), 
+	main= "F)            Internal State Change,
+      Evolution of $\\nu$             ",  
+	cex.main = 1.2, 
+	array(c(Value10[,1], Value10[,2]),c(11,2)),
+	xlab = ' ', 
+	ylab = ' ', 
+	xaxt = 'n',
+	#xlab = 'At Step', ylab = 'Average irritation weight', 
+	xlim = c(0,10), xaxp = c(0,10,10),
+	 ylim=c(0,1),yaxp=c(0,1,4),
+	frame.plot = FALSE, 
+	type =c("l", "l"), lwd =2, lty = c(1,1), 
+	col = c("red", "blue"), , cex.axis = 1.2 , cex.lab = 1.2)
+	mtext(text = " Average $\\nu$ ", side = 2, cex = 0.8, line = 2.2)
+	mtext(text = " At Step ", side = 1, cex = 0.8, line = 2.2)
+	axis(1, at= (0:10),labels=c("0","1", "2", "3", "4", "5", "6", "7", "8", "9", "10"), col.axis="black")
+	legend(x="topright", 2, c(" $\\nu^T$ ",
+" $\\nu^I$"),
+      lty = c(1,1), col = c("red", "blue"),
+	 bty = 'n', cex = 1)
+	arrows((0:10), Value10[,1], (0:10), Value10[,1]+Value11[,1], 0.01, 90);
+	arrows((0:10), Value10[,1], (0:10), Value10[,1]-Value11[,1], 0.01, 90);
+	arrows((0:10), Value10[,2], (0:10), Value10[,2]+Value11[,2], 0.01, 90);
+	arrows((0:10), Value10[,2], (0:10), Value10[,2]-Value11[,2], 0.01, 90);
+
+
+dev.off();
+
+tools::texi2pdf("IrrIllust.tex")
+system(paste(getOption("pdfviewer"), "IrrIllust.pdf"))
