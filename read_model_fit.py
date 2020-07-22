@@ -118,5 +118,48 @@ for sidx, s in enumerate(pairs):
                                                                     count=1)[0]
 
 # Put parameters in data frames
-
 wide = pd.read_csv('data/trust_wide_data.csv')
+
+# Add columns
+wide['inv_likelihood'] = inv_likelihood
+wide['inv_tom'] = inv_tom
+wide['inv_guilt'] = inv_guilt
+wide['inv_aversion'] = inv_aversion
+wide['inv_plan'] = inv_plan
+wide['inv_temp'] = inv_temp
+wide['inv_shift'] = inv_shift
+wide['inv_irritability'] = inv_irritability
+
+wide['tru_likelihood'] = tru_likelihood
+wide['tru_tom'] = tru_tom
+wide['tru_guilt'] = tru_guilt
+wide['tru_aversion'] = tru_aversion
+wide['tru_plan'] = tru_plan
+wide['tru_temp'] = tru_temp
+wide['tru_shift'] = tru_shift
+wide['tru_irritability'] = tru_irritability
+
+# Save
+wide.to_csv('data/trust_wide_data.csv')
+
+long = pd.read_csv('data/trust_long_data.csv')
+
+long['inv_likelihood'] = np.repeat(inv_likelihood, 10)
+long['inv_tom'] = np.repeat(inv_tom, 10)
+long['inv_guilt'] = np.repeat(inv_guilt, 10)
+long['inv_aversion'] = np.repeat(inv_aversion, 10)
+long['inv_plan'] = np.repeat(inv_plan, 10)
+long['inv_temp'] = np.repeat(inv_temp, 10)
+long['inv_shift'] = np.repeat(inv_shift, 10)
+long['inv_irritability'] = np.repeat(inv_irritability, 10)
+
+long['tru_likelihood'] = np.repeat(tru_likelihood, 10)
+long['tru_tom'] = np.repeat(tru_tom, 10)
+long['tru_guilt'] = np.repeat(tru_guilt, 10)
+long['tru_aversion'] = np.repeat(tru_aversion, 10)
+long['tru_plan'] = np.repeat(tru_plan, 10)
+long['tru_temp'] = np.repeat(tru_temp, 10)
+long['tru_shift'] = np.repeat(tru_shift, 10)
+long['tru_irritability'] = np.repeat(tru_irritability, 10)
+
+long.to_csv('data/trust_long_data.csv')
