@@ -21,7 +21,7 @@ docker run -it -v $CODEPATH:/code mpcoll2/trustgame:latest python ./code/import_
 
 ## Fit the model
 
-All the C++ files in the *model_fit* directory are already compiled to run in the docker container. Fitting the model takes 1-2 hours/participant. However, multiple participants can be run in parallel if you have access to more than one cpu thread. To fit the model to one participant or multiple participants, modify the bash script *model_fit_parallel.sh* according to the instructions in the script and run it using the command below.
+The C++ files in the *model_fit* directory are already compiled to run in the docker container. Fitting the model takes 1-2 hours/participant. However, multiple participants can be run in parallel if you have access to more than one cpu thread. To fit the model to one participant or multiple participants, modify the bash script *model_fit_parallel.sh* according to the instructions in the script and run it using the command below.
 
 ```bash
 docker run -it -v $CODEPATH:/code mpcoll2/trustgame:latest ./code/model_fit_parallel.sh
