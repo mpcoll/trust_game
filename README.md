@@ -11,7 +11,7 @@ After downloading this repository, use your path to this repository to replace $
 
 ## Import the data
 
-The *import_prepare_data.py* script loads the raw data, creates long and wide versions of the data frame and saves the data as a binary file for the model fitting. All outputs are in the *data* folder.
+The *import_prepare_data.py* script loads the raw data, creates long and wide versions of the data frame and saves the data as a binary file for the model fitting. All outputs are saved in the *data* folder.
 
 ***TODO : Double check data manipulation in script***
 
