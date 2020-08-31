@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 
 # Participants in outputs
-pairs = range(1, 128)
+pairs = range(0, 128)
 n_pairs = len(pairs)
 
 # Initialise empty lists to capture results
@@ -50,7 +50,7 @@ inv_act = np.empty(shape=(5, 10, 3, 5, 5, n_pairs))
 tru_act = np.empty(shape=(5, 10, 3, 5, 5, n_pairs))
 
 for sidx, s in enumerate(pairs):
-    filename = 'model_fit_v2/outputs/trust_params_pair' + str(s) + '.bin'
+    filename = 'model_fit_v1/outputs/trust_params_pair' + str(s) + '.bin'
     with open(filename, mode='rb') as file: # b is important -> binary
         # Loop participants and read the main model parameters
             # Investor
@@ -88,12 +88,12 @@ for sidx, s in enumerate(pairs):
                                                             count=1)[0]
                         inv_shiftt[k+1, irr, sidx, t]=  np.fromfile(file, np.double,
                                                                 count=1)[0]
-                    # for g in range(3):
-                    #     for irr in range(5):
-                    #         for act in range(5):
-                    #             inv_act[act,t,g,k,irr,sidx] = np.fromfile(file,
-                    #                                                 np.double,
-                    #                                                 count=1)[0]
+                    for g in range(3):
+                        for irr in range(5):
+                            for act in range(5):
+                                inv_act[act,t,g,k,irr,sidx] = np.fromfile(file,
+                                                                    np.double,
+                                                                    count=1)[0]
             # Trial wise values for trustee
             for t in range(10):
                 for k in range(5):
@@ -110,12 +110,12 @@ for sidx, s in enumerate(pairs):
                                                             count=1)[0]
                         tru_shiftt[k+1, irr, sidx, t]=  np.fromfile(file, np.double,
                                                                 count=1)[0]
-                    # for g in range(3):
-                    #     for irr in range(5):
-                    #         for act in range(5):
-                    #             tru_act[act,t,g,k,irr,sidx] = np.fromfile(file,
-                    #                                                 np.double,
-                    #                                                 count=1)[0]
+                    for g in range(3):
+                        for irr in range(5):
+                            for act in range(5):
+                                tru_act[act,t,g,k,irr,sidx] = np.fromfile(file,
+                                                                    np.double,
+                                                                    count=1)[0]
 
 # Put parameters in data frames
 wide = pd.read_csv('data/trust_wide_data.csv')

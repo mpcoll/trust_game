@@ -19,9 +19,13 @@ The *import_prepare_data.py* script loads the raw data, creates long and wide ve
 docker run -it -v $CODEPATH:/code mpcoll2/trustgame:latest python ./code/import_prepare_data.py
 ```
 
-## Fit the model
+## Fit the IPOMDP model
 
-All the c++ files in the *model_fit* directory are already compiled to run in the docker container. Fitting the model takes 1-2 hours/participant. However, multiple participants can be run in parralell if your computer has more than one cpu thread. To fit the model to one participant or multiple participants, modify the bash script *model_fit_parallel.sh* according to the instructions in the script and run it using the command below.
+The C++ files in the *model_fit* directory are already compiled to run in the docker container. If you are not using the container you might need to modify the scripts and compile them again for your systen. Fitting the model takes 1-2 hours/participant. However, multiple participants can be run in parallel if you have access to more than one cpu thread. RAM usage is about 1GB per participant. To fit the model to one participant or multiple participants, modify the bash script *model_fit_parallel.sh* according to the instructions in the script and run it using the command below.
+
+***TODO : Double check script is working correctly***
+
+One output binary file per pair is saved in the *model_fit/outputs* folder. The model was already fitted to this data and the outputs are already in this folder.
 
 ```bash
 docker run -it -v $CODEPATH:/code mpcoll2/trustgame:latest ./code/model_fit_parallel.sh
